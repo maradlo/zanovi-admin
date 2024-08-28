@@ -17,16 +17,20 @@ const Edit = ({ token }) => {
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [description2, setDescription2] = useState(""); // New field for description2
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("");
   const [subCategory, setSubCategory] = useState("");
-  const [colors, setColors] = useState([]);
   const [inStore, setInStore] = useState(false);
   const [inStock, setInStock] = useState(false);
   const [bestseller, setBestseller] = useState(false); // Define bestseller state
+  const [condition, setCondition] = useState("new"); // Condition (new/used)
+  const [eanCode, setEanCode] = useState(""); // New field for EAN code
 
   const [quantityInStore, setQuantityInStore] = useState(0);
   const [quantityInStock, setQuantityInStock] = useState(0);
+  const [quantityUsedInStore, setQuantityUsedInStore] = useState(0); // New field for used products in store
+  const [quantityUsedInStock, setQuantityUsedInStock] = useState(0); // New field for used products in stock
 
   useEffect(() => {
     fetchProduct();
@@ -40,15 +44,19 @@ const Edit = ({ token }) => {
         setProduct(product);
         setName(product.name);
         setDescription(product.description);
+        setDescription2(product.description2 || ""); // Set description2
         setPrice(product.price);
         setCategory(product.category);
         setSubCategory(product.subCategory);
-        setColors(product.colors);
         setInStore(product.inStore);
         setInStock(product.inStock);
         setBestseller(product.bestseller); // Set bestseller state
+        setCondition(product.condition); // Set condition
         setQuantityInStore(product.quantityInStore);
         setQuantityInStock(product.quantityInStock);
+        setQuantityUsedInStore(product.quantityUsedInStore || 0); // Set quantityUsedInStore
+        setQuantityUsedInStock(product.quantityUsedInStock || 0); // Set quantityUsedInStock
+        setEanCode(product.eanCode || ""); // Set EAN code if exists
         if (product.image && product.image.length > 0) {
           setImage1(product.image[0]);
           setImage2(product.image[1] || null);
@@ -72,15 +80,19 @@ const Edit = ({ token }) => {
 
       formData.append("name", name);
       formData.append("description", description);
+      formData.append("description2", description2); // Include description2
       formData.append("price", price);
       formData.append("category", category);
       formData.append("subCategory", subCategory || "");
       formData.append("bestseller", bestseller); // Include bestseller in the form data
-      formData.append("colors", JSON.stringify(colors));
+      formData.append("condition", condition); // Use condition directly
       formData.append("inStore", inStore);
       formData.append("inStock", inStock);
       formData.append("quantityInStore", quantityInStore);
       formData.append("quantityInStock", quantityInStock);
+      formData.append("quantityUsedInStore", quantityUsedInStore); // Include quantityUsedInStore
+      formData.append("quantityUsedInStock", quantityUsedInStock); // Include quantityUsedInStock
+      formData.append("eanCode", eanCode); // Include EAN code
 
       if (image1 instanceof File) formData.append("image1", image1);
       if (image2 instanceof File) formData.append("image2", image2);
@@ -218,6 +230,17 @@ const Edit = ({ token }) => {
         />
       </div>
 
+      <div className="w-full">
+        <p className="mb-2">Popis produktu 2 (nepovinné)</p>
+        <textarea
+          onChange={(e) => setDescription2(e.target.value)}
+          value={description2}
+          className="w-full max-w-[500px] px-3 py-2"
+          type="text"
+          placeholder="Sem zadajte druhý popis produktu"
+        />
+      </div>
+
       <div className="flex flex-col sm:flex-row gap-2 w-full sm:gap-8">
         <div>
           <p className="mb-2">Kategória produktu</p>
@@ -226,7 +249,7 @@ const Edit = ({ token }) => {
             value={category}
             className="w-full px-3 py-2"
             type="text"
-            placeholder="Category"
+            placeholder="Kategória"
             required
           />
         </div>
@@ -238,7 +261,7 @@ const Edit = ({ token }) => {
             value={subCategory}
             className="w-full px-3 py-2"
             type="text"
-            placeholder="Subcategory"
+            placeholder="Podkategória"
           />
         </div>
 
@@ -249,107 +272,117 @@ const Edit = ({ token }) => {
             value={price}
             className="w-full px-3 py-2 sm:w-[120px]"
             type="Number"
-            placeholder="25"
+            placeholder="Cena"
           />
         </div>
       </div>
 
-      <div>
-        <p className="mb-2">Farby produktu</p>
-        <div className="flex gap-3">
-          <div
-            onClick={() =>
-              setColors((prev) =>
-                prev.includes("White")
-                  ? prev.filter((item) => item !== "White")
-                  : [...prev, "White"]
-              )
-            }
-          >
-            <p
-              className={`${
-                colors.includes("White") ? "bg-[#a7db28]" : "bg-slate-200"
-              } px-3 py-1 cursor-pointer`}
-            >
-              Biela
-            </p>
-          </div>
+      <div className="w-full">
+        <p className="mb-2">Stav produktu</p>
+        <select
+          value={condition}
+          onChange={(e) => setCondition(e.target.value)}
+          className="w-full px-3 py-2"
+        >
+          <option value="new">Nový</option>
+          <option value="used">Použitý</option>
+        </select>
+      </div>
 
-          <div
-            onClick={() =>
-              setColors((prev) =>
-                prev.includes("Black")
-                  ? prev.filter((item) => item !== "Black")
-                  : [...prev, "Black"]
-              )
-            }
-          >
-            <p
-              className={`${
-                colors.includes("Black") ? "bg-[#a7db28]" : "bg-slate-200"
-              } px-3 py-1 cursor-pointer`}
-            >
-              Čierna
-            </p>
-          </div>
+      <div className="flex flex-col sm:flex-row gap-2 w-full sm:gap-8">
+        <div className="flex gap-2 mt-2">
+          <input
+            onChange={() => setBestseller((prev) => !prev)}
+            checked={bestseller}
+            type="checkbox"
+            id="bestseller"
+          />
+          <label className="cursor-pointer" htmlFor="bestseller">
+            Označiť ako bestseller
+          </label>
+        </div>
+
+        <div className="flex gap-2 mt-2">
+          <input
+            onChange={() => setInStore((prev) => !prev)}
+            checked={inStore}
+            type="checkbox"
+            id="inStore"
+          />
+          <label className="cursor-pointer" htmlFor="inStore">
+            Dostupný v obchode
+          </label>
+        </div>
+
+        <div className="flex gap-2 mt-2">
+          <input
+            onChange={() => setInStock((prev) => !prev)}
+            checked={inStock}
+            type="checkbox"
+            id="inStock"
+          />
+          <label className="cursor-pointer" htmlFor="inStock">
+            Dostupný v sklade
+          </label>
         </div>
       </div>
 
-      <div className="flex gap-2 mt-2">
-        <input
-          onChange={() => setBestseller((prev) => !prev)}
-          checked={bestseller}
-          type="checkbox"
-          id="bestseller"
-        />
-        <label className="cursor-pointer" htmlFor="bestseller">
-          Označiť ako bestseller
-        </label>
+      <div className="flex flex-col sm:flex-row gap-2 w-full sm:gap-8">
+        <div>
+          <p className="mb-2">Počet nových kusov v obchode</p>
+          <input
+            onChange={(e) => setQuantityInStore(e.target.value)}
+            value={quantityInStore}
+            className="w-full max-w-[500px] px-3 py-2"
+            type="number"
+            placeholder="Počet kusov v obchode"
+          />
+        </div>
+
+        <div>
+          <p className="mb-2">Počet nových kusov na sklade</p>
+          <input
+            onChange={(e) => setQuantityInStock(e.target.value)}
+            value={quantityInStock}
+            className="w-full max-w-[500px] px-3 py-2"
+            type="number"
+            placeholder="Počet kusov na sklade"
+          />
+        </div>
       </div>
 
-      <div className="flex gap-2 mt-2">
-        <input
-          onChange={() => setInStore((prev) => !prev)}
-          checked={inStore}
-          type="checkbox"
-          id="inStore"
-        />
-        <label className="cursor-pointer" htmlFor="inStore">
-          Dostupný v obchode
-        </label>
+      <div className="flex flex-col sm:flex-row gap-2 w-full sm:gap-8">
+        <div>
+          <p className="mb-2">Počet použitých kusov v obchode</p>
+          <input
+            onChange={(e) => setQuantityUsedInStore(e.target.value)}
+            value={quantityUsedInStore}
+            className="w-full max-w-[500px] px-3 py-2"
+            type="number"
+            placeholder="Počet použitých kusov v obchode"
+          />
+        </div>
+
+        <div>
+          <p className="mb-2">Počet použitých kusov na sklade</p>
+          <input
+            onChange={(e) => setQuantityUsedInStock(e.target.value)}
+            value={quantityUsedInStock}
+            className="w-full max-w-[500px] px-3 py-2"
+            type="number"
+            placeholder="Počet použitých kusov na sklade"
+          />
+        </div>
       </div>
 
-      <div className="flex gap-2 mt-2">
+      <div className="w-full">
+        <p className="mb-2">EAN kód produktu (nepovinné)</p>
         <input
-          onChange={() => setInStock((prev) => !prev)}
-          checked={inStock}
-          type="checkbox"
-          id="inStock"
-        />
-        <label className="cursor-pointer" htmlFor="inStock">
-          Dostupný v sklade
-        </label>
-      </div>
-
-      <div>
-        <p className="mb-2">Počet kusov v obchode</p>
-        <input
-          onChange={(e) => setQuantityInStore(e.target.value)}
-          value={quantityInStore}
+          onChange={(e) => setEanCode(e.target.value)}
+          value={eanCode}
           className="w-full max-w-[500px] px-3 py-2"
-          type="number"
-          placeholder="Quantity in Store"
-        />
-      </div>
-
-      <div>
-        <p className="mb-2">Počet kusov na sklade</p>
-        <input
-          onChange={(e) => setQuantityInStock(e.target.value)}
-          value={quantityInStock}
-          className="w-full max-w-[500px] px-3 py-2"
-          type="number"
-          placeholder="Quantity in Stock"
+          type="text"
+          placeholder="Sem zadajte EAN kód produktu"
         />
       </div>
 

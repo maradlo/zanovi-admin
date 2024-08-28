@@ -100,11 +100,11 @@ const Orders = ({ token }) => {
             </div>
             <div>
               <p className="text-sm sm:text-[15px]">
-                Items : {order.items.length}
+                Produkty : {order.items.length}
               </p>
-              <p className="mt-3">Method : {order.paymentMethod}</p>
-              <p>Payment : {order.payment ? "Done" : "Pending"}</p>
-              <p>Date : {new Date(order.date).toLocaleDateString()}</p>
+              <p className="mt-3">Platobná metóda : {order.paymentMethod}</p>
+              <p>Stav platby : {order.payment ? "Done" : "Pending"}</p>
+              <p>Dátum : {new Date(order.date).toLocaleDateString()}</p>
             </div>
             <p className="text-sm sm:text-[15px]">
               {currency}
@@ -115,11 +115,11 @@ const Orders = ({ token }) => {
               value={order.status}
               className="p-2 font-semibold"
             >
-              <option value="Order Placed">Order Placed</option>
-              <option value="Packing">Packing</option>
-              <option value="Shipped">Shipped</option>
-              <option value="Out for delivery">Out for delivery</option>
-              <option value="Delivered">Delivered</option>
+              <option value="Order Placed">Zadaná objednávka</option>
+              <option value="Packing">Balenie</option>
+              <option value="Shipped">Odoslané</option>
+              <option value="Out for delivery">Na doručenie</option>
+              <option value="Delivered">Doručené</option>
             </select>
           </div>
         ))}

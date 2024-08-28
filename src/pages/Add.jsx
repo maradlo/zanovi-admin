@@ -13,14 +13,15 @@ const Add = ({ token }) => {
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [description2, setDescription2] = useState("");
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("");
   const [subCategory, setSubCategory] = useState("");
-  const [subCategoryList, setSubCategoryList] = useState([]); // List of subcategories
+  const [subCategoryList, setSubCategoryList] = useState([]);
   const [bestseller, setBestseller] = useState(false);
-  const [colors, setColors] = useState([]);
   const [inStore, setInStore] = useState(false);
   const [inStock, setInStock] = useState(false);
+  const [condition, setCondition] = useState("new"); // New field for condition
 
   const [categories, setCategories] = useState([]);
   const [newCategory, setNewCategory] = useState("");
@@ -28,6 +29,9 @@ const Add = ({ token }) => {
 
   const [quantityInStore, setQuantityInStore] = useState(0);
   const [quantityInStock, setQuantityInStock] = useState(0);
+  const [quantityUsedInStore, setQuantityUsedInStore] = useState(0);
+  const [quantityUsedInStock, setQuantityUsedInStock] = useState(0);
+  const [eanCode, setEanCode] = useState(""); // New EAN Code field
 
   const [loading, setLoading] = useState(false);
 
@@ -195,15 +199,19 @@ const Add = ({ token }) => {
 
       formData.append("name", name);
       formData.append("description", description);
+      formData.append("description2", description2);
       formData.append("price", price);
       formData.append("category", category);
       formData.append("subCategory", subCategory || "");
       formData.append("bestseller", bestseller);
-      formData.append("colors", JSON.stringify(colors));
       formData.append("inStore", inStore);
       formData.append("inStock", inStock);
+      formData.append("condition", condition); // Use condition field
       formData.append("quantityInStore", quantityInStore);
       formData.append("quantityInStock", quantityInStock);
+      formData.append("quantityUsedInStore", quantityUsedInStore);
+      formData.append("quantityUsedInStock", quantityUsedInStock);
+      formData.append("eanCode", eanCode);
 
       image1 && formData.append("image1", image1);
       image2 && formData.append("image2", image2);
@@ -221,14 +229,18 @@ const Add = ({ token }) => {
         setLoading(false);
         setName("");
         setDescription("");
+        setDescription2("");
         setImage1(false);
         setImage2(false);
         setImage3(false);
         setImage4(false);
         setPrice("");
-        setColors([]);
-        setInStore(false);
-        setInStock(false);
+        setCondition("new"); // Reset condition to default
+        setQuantityInStore(0);
+        setQuantityInStock(0);
+        setQuantityUsedInStore(0);
+        setQuantityUsedInStock(0);
+        setEanCode("");
         setCategory("");
         setSubCategory("");
       } else {
@@ -339,6 +351,17 @@ const Add = ({ token }) => {
         />
       </div>
 
+      <div className="w-full">
+        <p className="mb-2">Popis produktu 2 (nepovinné)</p>
+        <textarea
+          onChange={(e) => setDescription2(e.target.value)}
+          value={description2}
+          className="w-full max-w-[500px] px-3 py-2"
+          type="text"
+          placeholder="Sem zadajte druhý popis produktu"
+        />
+      </div>
+
       <div className="flex flex-col sm:flex-row gap-2 w-full sm:gap-8">
         <div>
           <p className="mb-2">Kategória produktu</p>
@@ -424,102 +447,112 @@ const Add = ({ token }) => {
         </div>
       </div>
 
-      <div>
-        <p className="mb-2">Farby produktu</p>
-        <div className="flex gap-3">
-          <div
-            onClick={() =>
-              setColors((prev) =>
-                prev.includes("White")
-                  ? prev.filter((item) => item !== "White")
-                  : [...prev, "White"]
-              )
-            }
-          >
-            <p
-              className={`${
-                colors.includes("White") ? "bg-pink-100" : "bg-slate-200"
-              } px-3 py-1 cursor-pointer`}
-            >
-              Biela
-            </p>
-          </div>
+      <div className="w-full">
+        <p className="mb-2">Stav produktu</p>
+        <select
+          value={condition}
+          onChange={(e) => setCondition(e.target.value)}
+          className="w-full px-3 py-2"
+        >
+          <option value="new">Nový</option>
+          <option value="used">Použitý</option>
+        </select>
+      </div>
 
-          <div
-            onClick={() =>
-              setColors((prev) =>
-                prev.includes("Black")
-                  ? prev.filter((item) => item !== "Black")
-                  : [...prev, "Black"]
-              )
-            }
-          >
-            <p
-              className={`${
-                colors.includes("Black") ? "bg-pink-100" : "bg-slate-200"
-              } px-3 py-1 cursor-pointer`}
-            >
-              Čierna
-            </p>
-          </div>
+      <div className="flex flex-col sm:flex-row gap-2 w-full sm:gap-8">
+        <div className="flex gap-2 mt-2">
+          <input
+            onChange={() => setBestseller((prev) => !prev)}
+            checked={bestseller}
+            type="checkbox"
+            id="bestseller"
+          />
+          <label className="cursor-pointer" htmlFor="bestseller">
+            Označiť ako bestseller
+          </label>
+        </div>
+
+        <div className="flex gap-2 mt-2">
+          <input
+            onChange={() => setInStore((prev) => !prev)}
+            checked={inStore}
+            type="checkbox"
+            id="inStore"
+          />
+          <label className="cursor-pointer" htmlFor="inStore">
+            Dostupný v obchode
+          </label>
+        </div>
+
+        <div className="flex gap-2 mt-2">
+          <input
+            onChange={() => setInStock((prev) => !prev)}
+            checked={inStock}
+            type="checkbox"
+            id="inStock"
+          />
+          <label className="cursor-pointer" htmlFor="inStock">
+            Dostupný v sklade
+          </label>
         </div>
       </div>
 
-      <div className="flex gap-2 mt-2">
-        <input
-          onChange={() => setBestseller((prev) => !prev)}
-          checked={bestseller}
-          type="checkbox"
-          id="bestseller"
-        />
-        <label className="cursor-pointer" htmlFor="bestseller">
-          Označiť ako bestseller
-        </label>
+      <div className="flex flex-col sm:flex-row gap-2 w-full sm:gap-8">
+        <div>
+          <p className="mb-2">Počet nových kusov v obchode</p>
+          <input
+            onChange={(e) => setQuantityInStore(e.target.value)}
+            value={quantityInStore}
+            className="w-full max-w-[500px] px-3 py-2"
+            type="number"
+            placeholder="Počet kusov v obchode"
+          />
+        </div>
+
+        <div>
+          <p className="mb-2">Počet nových kusov na sklade</p>
+          <input
+            onChange={(e) => setQuantityInStock(e.target.value)}
+            value={quantityInStock}
+            className="w-full max-w-[500px] px-3 py-2"
+            type="number"
+            placeholder="Počet kusov na sklade"
+          />
+        </div>
       </div>
 
-      <div className="flex gap-2 mt-2">
-        <input
-          onChange={() => setInStore((prev) => !prev)}
-          checked={inStore}
-          type="checkbox"
-          id="inStore"
-        />
-        <label className="cursor-pointer" htmlFor="inStore">
-          Dostupný v obchode
-        </label>
+      <div className="flex flex-col sm:flex-row gap-2 w-full sm:gap-8">
+        <div>
+          <p className="mb-2">Počet použitých kusov v obchode</p>
+          <input
+            onChange={(e) => setQuantityUsedInStore(e.target.value)}
+            value={quantityUsedInStore}
+            className="w-full max-w-[500px] px-3 py-2"
+            type="number"
+            placeholder="Počet použitých kusov v obchode"
+          />
+        </div>
+
+        <div>
+          <p className="mb-2">Počet použitých kusov na sklade</p>
+          <input
+            onChange={(e) => setQuantityUsedInStock(e.target.value)}
+            value={quantityUsedInStock}
+            className="w-full max-w-[500px] px-3 py-2"
+            type="number"
+            placeholder="Počet použitých kusov na sklade"
+          />
+        </div>
       </div>
 
-      <div className="flex gap-2 mt-2">
+      <div className="w-full">
+        <p className="mb-2">EAN kód produktu (nepovinné)</p>
         <input
-          onChange={() => setInStock((prev) => !prev)}
-          checked={inStock}
-          type="checkbox"
-          id="inStock"
-        />
-        <label className="cursor-pointer" htmlFor="inStock">
-          Dostupný v sklade
-        </label>
-      </div>
-
-      <div>
-        <p className="mb-2">Počet kusov v obchode</p>
-        <input
-          onChange={(e) => setQuantityInStore(e.target.value)}
-          value={quantityInStore}
+          onChange={(e) => setEanCode(e.target.value)}
+          value={eanCode}
           className="w-full max-w-[500px] px-3 py-2"
-          type="number"
-          placeholder="Počet kusov v obchode"
-        />
-      </div>
-
-      <div>
-        <p className="mb-2">Počet kusov na sklade</p>
-        <input
-          onChange={(e) => setQuantityInStock(e.target.value)}
-          value={quantityInStock}
-          className="w-full max-w-[500px] px-3 py-2"
-          type="number"
-          placeholder="Počet kusov na sklade"
+          type="text"
+          placeholder="Sem zadajte EAN kód produktu"
         />
       </div>
 
