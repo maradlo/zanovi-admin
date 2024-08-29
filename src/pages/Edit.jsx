@@ -4,6 +4,10 @@ import axios from "axios";
 import { backendUrl } from "../App";
 import { toast } from "react-toastify";
 import { useParams, useNavigate } from "react-router-dom";
+import ReactMde from "react-mde";
+import "react-mde/lib/styles/css/react-mde-all.css";
+import * as Showdown from "showdown";
+import { FaTimes } from "react-icons/fa";
 
 const Edit = ({ token }) => {
   const { id } = useParams(); // Get the product ID from the URL
@@ -18,23 +22,60 @@ const Edit = ({ token }) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [description2, setDescription2] = useState(""); // New field for description2
-  const [price, setPrice] = useState("");
+  const [selectedTab, setSelectedTab] = useState("write"); // For ReactMde
   const [category, setCategory] = useState("");
   const [subCategory, setSubCategory] = useState("");
-  const [inStore, setInStore] = useState(false);
-  const [inStock, setInStock] = useState(false);
-  const [bestseller, setBestseller] = useState(false); // Define bestseller state
-  const [condition, setCondition] = useState("new"); // Condition (new/used)
+  const [subCategoryList, setSubCategoryList] = useState([]);
+  const condition = "new"; // Condition (new/used)
   const [eanCode, setEanCode] = useState(""); // New field for EAN code
 
-  const [quantityInStore, setQuantityInStore] = useState(0);
-  const [quantityInStock, setQuantityInStock] = useState(0);
-  const [quantityUsedInStore, setQuantityUsedInStore] = useState(0); // New field for used products in store
-  const [quantityUsedInStock, setQuantityUsedInStock] = useState(0); // New field for used products in stock
+  const price = "0";
+
+  const [bestseller, setBestseller] = useState(false);
+
+  const [serialNumber, setSerialNumber] = useState(""); // Serial Number for specific categories
+  const [productClass, setProductClass] = useState(""); // Class for mobile phones
+
+  const [categories, setCategories] = useState([]);
+  const [newCategory, setNewCategory] = useState("");
+  const [newSubCategory, setNewSubCategory] = useState("");
+
+  const classOptions = [
+    { value: "A", label: "Trieda A (brand new)" },
+    { value: "B", label: "Trieda B (used without issues)" },
+    { value: "C", label: "Trieda C (scratches etc.)" },
+  ];
+
+  const converter = new Showdown.Converter({
+    tables: true,
+    simplifiedAutoLink: true,
+  });
 
   useEffect(() => {
     fetchProduct();
   }, [id]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    if (newCategory) {
+      addNewCategory();
+    }
+  }, [newCategory]);
+
+  useEffect(() => {
+    if (newSubCategory) {
+      addNewSubCategory();
+    }
+  }, [newSubCategory]);
+
+  useEffect(() => {
+    if (category) {
+      fetchSubCategories(category);
+    }
+  }, [category]);
 
   const fetchProduct = async () => {
     try {
@@ -45,18 +86,13 @@ const Edit = ({ token }) => {
         setName(product.name);
         setDescription(product.description);
         setDescription2(product.description2 || ""); // Set description2
-        setPrice(product.price);
+        setBestseller(product.bestseller);
         setCategory(product.category);
         setSubCategory(product.subCategory);
-        setInStore(product.inStore);
-        setInStock(product.inStock);
-        setBestseller(product.bestseller); // Set bestseller state
-        setCondition(product.condition); // Set condition
-        setQuantityInStore(product.quantityInStore);
-        setQuantityInStock(product.quantityInStock);
-        setQuantityUsedInStore(product.quantityUsedInStore || 0); // Set quantityUsedInStore
-        setQuantityUsedInStock(product.quantityUsedInStock || 0); // Set quantityUsedInStock
         setEanCode(product.eanCode || ""); // Set EAN code if exists
+        setSerialNumber(product.serialNumber || ""); // Set Serial Number if exists
+        setProductClass(product.class || ""); // Set Product Class if exists
+
         if (product.image && product.image.length > 0) {
           setImage1(product.image[0]);
           setImage2(product.image[1] || null);
@@ -72,6 +108,138 @@ const Edit = ({ token }) => {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const response = await axios.get(backendUrl + "/api/category/list");
+      if (response.data.success) {
+        setCategories(response.data.categories);
+      } else {
+        toast.error(response.data.message);
+      }
+    } catch (error) {
+      console.log(error);
+      toast.error("Nepodarilo sa načítať kategórie");
+    }
+  };
+
+  const fetchSubCategories = async (categoryName) => {
+    try {
+      const response = await axios.get(
+        `${backendUrl}/api/category/subcategories/${categoryName}`
+      );
+      if (response.data.success) {
+        setSubCategoryList(response.data.subCategories);
+      } else {
+        toast.error(response.data.message);
+      }
+    } catch (error) {
+      console.log(error);
+      toast.error("Nepodarilo sa načítať podkategórie");
+    }
+  };
+
+  const addNewCategory = async () => {
+    if (!newCategory.trim()) {
+      toast.error("Názov kategórie nemôže byť prázdny");
+      return;
+    }
+
+    try {
+      const response = await axios.post(
+        backendUrl + "/api/category/add",
+        { name: newCategory },
+        { headers: { token } }
+      );
+      if (response.data.success) {
+        toast.success(response.data.message);
+        setNewCategory(""); // Clear the input field after successful addition
+        fetchCategories(); // Refresh categories list
+      } else {
+        toast.error(response.data.message);
+      }
+    } catch (error) {
+      console.log(error);
+      toast.error("Nepodarilo sa pridať kategóriu");
+    }
+  };
+
+  const addNewSubCategory = async () => {
+    if (!newSubCategory.trim()) {
+      toast.error("Názov podkategórie nemôže byť prázdny");
+      return;
+    }
+
+    try {
+      const response = await axios.post(
+        backendUrl + "/api/category/subcategory/add",
+        { categoryName: category, subCategoryName: newSubCategory },
+        { headers: { token } }
+      );
+      if (response.data.success) {
+        toast.success(response.data.message);
+        setNewSubCategory("");
+        fetchSubCategories(category); // Refresh subcategories list
+      } else {
+        toast.error(response.data.message);
+      }
+    } catch (error) {
+      console.log(error);
+      toast.error("Nepodarilo sa pridať podkategóriu");
+    }
+  };
+
+  const deleteCategory = async (categoryName) => {
+    if (
+      window.confirm(`Naozaj chcete vymazať túto kategóriu: ${categoryName}?`)
+    ) {
+      try {
+        const response = await axios.post(
+          backendUrl + "/api/category/delete",
+          { name: categoryName },
+          { headers: { token } }
+        );
+        if (response.data.success) {
+          toast.success(response.data.message);
+          fetchCategories(); // Refresh categories list
+          if (category === categoryName) {
+            setCategory("");
+            setSubCategoryList([]);
+          }
+        } else {
+          toast.error(response.data.message);
+        }
+      } catch (error) {
+        console.log(error);
+        toast.error("Nepodarilo sa vymazať kategóriu");
+      }
+    }
+  };
+
+  const deleteSubCategory = async (subCategoryName) => {
+    if (
+      window.confirm(
+        `Naozaj chcete vymazať túto podkategóriu: ${subCategoryName}?`
+      )
+    ) {
+      try {
+        const response = await axios.post(
+          backendUrl + "/api/category/subcategory/delete",
+          { categoryName: category, subCategoryName: subCategoryName },
+          { headers: { token } }
+        );
+        if (response.data.success) {
+          toast.success(response.data.message);
+          fetchSubCategories(category); // Refresh subcategories list
+        } else {
+          toast.error(response.data.message);
+        }
+      } catch (error) {
+        console.log(error);
+        toast.error("Nepodarilo sa vymazať podkategóriu");
+      }
+    }
+  };
+
   const onSubmitHandler = async (e) => {
     e.preventDefault();
 
@@ -81,18 +249,14 @@ const Edit = ({ token }) => {
       formData.append("name", name);
       formData.append("description", description);
       formData.append("description2", description2); // Include description2
-      formData.append("price", price);
       formData.append("category", category);
+      formData.append("price", price);
+      formData.append("bestseller", bestseller);
       formData.append("subCategory", subCategory || "");
-      formData.append("bestseller", bestseller); // Include bestseller in the form data
       formData.append("condition", condition); // Use condition directly
-      formData.append("inStore", inStore);
-      formData.append("inStock", inStock);
-      formData.append("quantityInStore", quantityInStore);
-      formData.append("quantityInStock", quantityInStock);
-      formData.append("quantityUsedInStore", quantityUsedInStore); // Include quantityUsedInStore
-      formData.append("quantityUsedInStock", quantityUsedInStock); // Include quantityUsedInStock
       formData.append("eanCode", eanCode); // Include EAN code
+      formData.append("serialNumber", serialNumber); // Include Serial Number
+      formData.append("class", productClass); // Include Product Class
 
       if (image1 instanceof File) formData.append("image1", image1);
       if (image2 instanceof File) formData.append("image2", image2);
@@ -114,6 +278,15 @@ const Edit = ({ token }) => {
     } catch (error) {
       console.log(error);
       toast.error("Nepodarilo sa aktualizovať produkt");
+    }
+  };
+
+  const handleCategoryChange = (e) => {
+    const selectedCategory = e.target.value;
+    setCategory(selectedCategory);
+    setSubCategory(""); // Reset subcategory when category changes
+    if (selectedCategory) {
+      fetchSubCategories(selectedCategory);
     }
   };
 
@@ -232,61 +405,89 @@ const Edit = ({ token }) => {
 
       <div className="w-full">
         <p className="mb-2">Popis produktu 2 (nepovinné)</p>
-        <textarea
-          onChange={(e) => setDescription2(e.target.value)}
+        <ReactMde
           value={description2}
-          className="w-full max-w-[500px] px-3 py-2"
-          type="text"
-          placeholder="Sem zadajte druhý popis produktu"
+          onChange={setDescription2}
+          selectedTab={selectedTab}
+          onTabChange={setSelectedTab}
+          generateMarkdownPreview={(markdown) =>
+            Promise.resolve(converter.makeHtml(markdown))
+          }
         />
       </div>
 
       <div className="flex flex-col sm:flex-row gap-2 w-full sm:gap-8">
         <div>
           <p className="mb-2">Kategória produktu</p>
-          <input
-            onChange={(e) => setCategory(e.target.value)}
-            value={category}
-            className="w-full px-3 py-2"
-            type="text"
-            placeholder="Kategória"
-            required
-          />
+          <div className="flex items-center">
+            <select
+              onChange={handleCategoryChange}
+              value={category}
+              className="w-full px-3 py-2"
+            >
+              <option value="">Vyberte kategóriu</option>
+              {categories.map((cat) => (
+                <option key={cat._id} value={cat.name}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="ml-2 text-blue-600"
+              onClick={() => {
+                const newCat = prompt("Zadajte názov novej kategórie:");
+                if (newCat) {
+                  setNewCategory(newCat);
+                }
+              }}
+            >
+              +
+            </button>
+            {category && (
+              <FaTimes
+                className="ml-2 text-red-600 cursor-pointer"
+                onClick={() => deleteCategory(category)}
+              />
+            )}
+          </div>
         </div>
 
         <div>
           <p className="mb-2">Podkategória produktu</p>
-          <input
-            onChange={(e) => setSubCategory(e.target.value)}
-            value={subCategory}
-            className="w-full px-3 py-2"
-            type="text"
-            placeholder="Podkategória"
-          />
+          <div className="flex items-center">
+            <select
+              onChange={(e) => setSubCategory(e.target.value)}
+              value={subCategory}
+              className="w-full px-3 py-2"
+            >
+              <option value="">Vyberte podkategóriu</option>
+              {subCategoryList.map((subCat) => (
+                <option key={subCat} value={subCat}>
+                  {subCat}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="ml-2 text-blue-600"
+              onClick={() => {
+                const newSubCat = prompt("Zadajte názov novej podkategórie:");
+                if (newSubCat) {
+                  setNewSubCategory(newSubCat);
+                }
+              }}
+            >
+              +
+            </button>
+            {subCategory && (
+              <FaTimes
+                className="ml-2 text-red-600 cursor-pointer"
+                onClick={() => deleteSubCategory(subCategory)}
+              />
+            )}
+          </div>
         </div>
-
-        <div>
-          <p className="mb-2">Cena produktu</p>
-          <input
-            onChange={(e) => setPrice(e.target.value)}
-            value={price}
-            className="w-full px-3 py-2 sm:w-[120px]"
-            type="Number"
-            placeholder="Cena"
-          />
-        </div>
-      </div>
-
-      <div className="w-full">
-        <p className="mb-2">Stav produktu</p>
-        <select
-          value={condition}
-          onChange={(e) => setCondition(e.target.value)}
-          className="w-full px-3 py-2"
-        >
-          <option value="new">Nový</option>
-          <option value="used">Použitý</option>
-        </select>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-2 w-full sm:gap-8">
@@ -301,79 +502,38 @@ const Edit = ({ token }) => {
             Označiť ako bestseller
           </label>
         </div>
-
-        <div className="flex gap-2 mt-2">
-          <input
-            onChange={() => setInStore((prev) => !prev)}
-            checked={inStore}
-            type="checkbox"
-            id="inStore"
-          />
-          <label className="cursor-pointer" htmlFor="inStore">
-            Dostupný v obchode
-          </label>
-        </div>
-
-        <div className="flex gap-2 mt-2">
-          <input
-            onChange={() => setInStock((prev) => !prev)}
-            checked={inStock}
-            type="checkbox"
-            id="inStock"
-          />
-          <label className="cursor-pointer" htmlFor="inStock">
-            Dostupný v sklade
-          </label>
-        </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-2 w-full sm:gap-8">
-        <div>
-          <p className="mb-2">Počet nových kusov v obchode</p>
+      {["Herné konzoly", "Mobily"].includes(category) && (
+        <div className="w-full">
+          <p className="mb-2">Sériové číslo (S/N)</p>
           <input
-            onChange={(e) => setQuantityInStore(e.target.value)}
-            value={quantityInStore}
+            onChange={(e) => setSerialNumber(e.target.value)}
+            value={serialNumber}
             className="w-full max-w-[500px] px-3 py-2"
-            type="number"
-            placeholder="Počet kusov v obchode"
+            type="text"
+            placeholder="Sem zadajte sériové číslo"
           />
         </div>
+      )}
 
-        <div>
-          <p className="mb-2">Počet nových kusov na sklade</p>
-          <input
-            onChange={(e) => setQuantityInStock(e.target.value)}
-            value={quantityInStock}
-            className="w-full max-w-[500px] px-3 py-2"
-            type="number"
-            placeholder="Počet kusov na sklade"
-          />
+      {category === "Mobily" && (
+        <div className="w-full">
+          <p className="mb-2">Trieda</p>
+          <select
+            value={productClass}
+            onChange={(e) => setProductClass(e.target.value)}
+            className="w-full px-3 py-2"
+          >
+            <option value="">Vyberte triedu</option>
+            {classOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-2 w-full sm:gap-8">
-        <div>
-          <p className="mb-2">Počet použitých kusov v obchode</p>
-          <input
-            onChange={(e) => setQuantityUsedInStore(e.target.value)}
-            value={quantityUsedInStore}
-            className="w-full max-w-[500px] px-3 py-2"
-            type="number"
-            placeholder="Počet použitých kusov v obchode"
-          />
-        </div>
-
-        <div>
-          <p className="mb-2">Počet použitých kusov na sklade</p>
-          <input
-            onChange={(e) => setQuantityUsedInStock(e.target.value)}
-            value={quantityUsedInStock}
-            className="w-full max-w-[500px] px-3 py-2"
-            type="number"
-            placeholder="Počet použitých kusov na sklade"
-          />
-        </div>
-      </div>
+      )}
 
       <div className="w-full">
         <p className="mb-2">EAN kód produktu (nepovinné)</p>

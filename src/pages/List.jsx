@@ -46,7 +46,7 @@ const List = ({ token }) => {
   };
 
   const editProduct = (id) => {
-    navigate(`/admin/edit/${id}`); // Navigate to the edit page with the product ID
+    navigate(`/edit/${id}`);
   };
 
   useEffect(() => {
@@ -59,12 +59,11 @@ const List = ({ token }) => {
       <div className="flex flex-col gap-2">
         {/* ------- List Table Title ---------- */}
 
-        <div className="hidden md:grid grid-cols-[1fr_2fr_2fr_1fr_1fr_1fr_3fr] items-center py-1 px-2 border bg-gray-100 text-sm">
+        <div className="hidden md:grid grid-cols-[1fr_2fr_2fr_1fr_2fr_3fr] items-center py-1 px-2 border bg-gray-100 text-sm">
           <b>Fotka</b>
           <b>Názov produktu</b>
           <b>Kategória / subkategória</b>
           <b>Cena</b>
-          <b>Stav</b>
           <b>Dostupnosť</b>
           <b className="text-center">Akcie</b>
         </div>
@@ -73,7 +72,7 @@ const List = ({ token }) => {
 
         {list.map((item, index) => (
           <div
-            className="grid grid-cols-[1fr_2fr_2fr] md:grid-cols-[1fr_2fr_2fr_1fr_1fr_1fr_3fr] items-center gap-2 py-1 px-2 border text-sm"
+            className="grid grid-cols-[1fr_2fr_2fr] md:grid-cols-[1fr_2fr_2fr_1fr_2fr_3fr] items-center gap-2 py-1 px-2 border text-sm"
             key={index}
           >
             {item.image && item.image.length > 0 ? (
@@ -86,24 +85,28 @@ const List = ({ token }) => {
               {item.category}
               {item.subCategory ? ` / ${item.subCategory}` : ""}
             </p>
-            <p>
-              {item.price ? item.price : "- "}
-              {currency}
-            </p>
-            <p>{item.condition === "new" ? "Nové" : "Použité"}</p>
             <div>
-              {item.condition === "new" && (
-                <>
-                  <p>Na predajni: {item.quantityInStore}</p>
-                  <p>V sklade: {item.quantityInStock}</p>
-                </>
-              )}
-              {item.condition === "used" && (
-                <>
-                  <p>Na predajni (Použitý): {item.quantityUsedInStore}</p>
-                  <p>V sklade (Použitý): {item.quantityUsedInStock}</p>
-                </>
-              )}
+              <p>
+                Nový produkt:{" "}
+                {item.warehouse.price.new ? item.warehouse.price.new : "- "}
+                {currency}
+              </p>
+              <p>
+                Použitý produkt:{" "}
+                {item.warehouse.price.used ? item.warehouse.price.used : "- "}
+                {currency}
+              </p>
+            </div>
+
+            <div>
+              <p>Na predajni (Nový): {item.warehouse.quantityInStore.new} ks</p>
+              <p>V sklade (Nový): {item.warehouse.quantityInStock.new} ks</p>
+              <p>
+                Na predajni (Použitý): {item.warehouse.quantityInStore.used} ks
+              </p>
+              <p>
+                V sklade (Použitý): {item.warehouse.quantityInStock.used} ks
+              </p>
             </div>
             <div className="flex gap-2 justify-end">
               <FaPencilAlt

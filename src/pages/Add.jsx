@@ -4,6 +4,9 @@ import axios from "axios";
 import { backendUrl } from "../App";
 import { toast } from "react-toastify";
 import { FaTimes, FaSpinner } from "react-icons/fa";
+import ReactMde from "react-mde";
+import "react-mde/lib/styles/css/react-mde-all.css";
+import * as Showdown from "showdown";
 
 const Add = ({ token }) => {
   const [image1, setImage1] = useState(false);
@@ -14,26 +17,36 @@ const Add = ({ token }) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [description2, setDescription2] = useState("");
-  const [price, setPrice] = useState("");
+  const [selectedTab, setSelectedTab] = useState("write"); // For ReactMde
   const [category, setCategory] = useState("");
   const [subCategory, setSubCategory] = useState("");
   const [subCategoryList, setSubCategoryList] = useState([]);
+  const condition = "new";
+
+  const price = "0";
   const [bestseller, setBestseller] = useState(false);
-  const [inStore, setInStore] = useState(false);
-  const [inStock, setInStock] = useState(false);
-  const [condition, setCondition] = useState("new"); // New field for condition
+
+  const [serialNumber, setSerialNumber] = useState(""); // S/N field
+  const [productClass, setProductClass] = useState(""); // Class field
 
   const [categories, setCategories] = useState([]);
   const [newCategory, setNewCategory] = useState("");
   const [newSubCategory, setNewSubCategory] = useState("");
 
-  const [quantityInStore, setQuantityInStore] = useState(0);
-  const [quantityInStock, setQuantityInStock] = useState(0);
-  const [quantityUsedInStore, setQuantityUsedInStore] = useState(0);
-  const [quantityUsedInStock, setQuantityUsedInStock] = useState(0);
-  const [eanCode, setEanCode] = useState(""); // New EAN Code field
+  const [eanCode, setEanCode] = useState("");
 
   const [loading, setLoading] = useState(false);
+
+  const classOptions = [
+    { value: "A", label: "Trieda A (brand new)" },
+    { value: "B", label: "Trieda B (used without issues)" },
+    { value: "C", label: "Trieda C (scratches etc.)" },
+  ];
+
+  const converter = new Showdown.Converter({
+    tables: true,
+    simplifiedAutoLink: true,
+  });
 
   useEffect(() => {
     fetchCategories();
@@ -200,18 +213,19 @@ const Add = ({ token }) => {
       formData.append("name", name);
       formData.append("description", description);
       formData.append("description2", description2);
-      formData.append("price", price);
       formData.append("category", category);
       formData.append("subCategory", subCategory || "");
+      formData.append("condition", condition);
+      formData.append("price", price);
       formData.append("bestseller", bestseller);
-      formData.append("inStore", inStore);
-      formData.append("inStock", inStock);
-      formData.append("condition", condition); // Use condition field
-      formData.append("quantityInStore", quantityInStore);
-      formData.append("quantityInStock", quantityInStock);
-      formData.append("quantityUsedInStore", quantityUsedInStore);
-      formData.append("quantityUsedInStock", quantityUsedInStock);
-      formData.append("eanCode", eanCode);
+
+      if (category === "Herné konzoly" || category === "Mobily") {
+        formData.append("serialNumber", serialNumber); // Append S/N field
+      }
+
+      if (category === "Mobily") {
+        formData.append("class", productClass); // Append Class field
+      }
 
       image1 && formData.append("image1", image1);
       image2 && formData.append("image2", image2);
@@ -234,15 +248,11 @@ const Add = ({ token }) => {
         setImage2(false);
         setImage3(false);
         setImage4(false);
-        setPrice("");
-        setCondition("new"); // Reset condition to default
-        setQuantityInStore(0);
-        setQuantityInStock(0);
-        setQuantityUsedInStore(0);
-        setQuantityUsedInStock(0);
         setEanCode("");
         setCategory("");
         setSubCategory("");
+        setSerialNumber(""); // Reset S/N field
+        setProductClass(""); // Reset Class field
       } else {
         toast.error(response.data.message);
         setLoading(false);
@@ -353,12 +363,14 @@ const Add = ({ token }) => {
 
       <div className="w-full">
         <p className="mb-2">Popis produktu 2 (nepovinné)</p>
-        <textarea
-          onChange={(e) => setDescription2(e.target.value)}
+        <ReactMde
           value={description2}
-          className="w-full max-w-[500px] px-3 py-2"
-          type="text"
-          placeholder="Sem zadajte druhý popis produktu"
+          onChange={setDescription2}
+          selectedTab={selectedTab}
+          onTabChange={setSelectedTab}
+          generateMarkdownPreview={(markdown) =>
+            Promise.resolve(converter.makeHtml(markdown))
+          }
         />
       </div>
 
@@ -434,29 +446,6 @@ const Add = ({ token }) => {
             )}
           </div>
         </div>
-
-        <div>
-          <p className="mb-2">Cena produktu</p>
-          <input
-            onChange={(e) => setPrice(e.target.value)}
-            value={price}
-            className="w-full px-3 py-2 sm:w-[120px]"
-            type="Number"
-            placeholder="100"
-          />
-        </div>
-      </div>
-
-      <div className="w-full">
-        <p className="mb-2">Stav produktu</p>
-        <select
-          value={condition}
-          onChange={(e) => setCondition(e.target.value)}
-          className="w-full px-3 py-2"
-        >
-          <option value="new">Nový</option>
-          <option value="used">Použitý</option>
-        </select>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-2 w-full sm:gap-8">
@@ -471,79 +460,38 @@ const Add = ({ token }) => {
             Označiť ako bestseller
           </label>
         </div>
-
-        <div className="flex gap-2 mt-2">
-          <input
-            onChange={() => setInStore((prev) => !prev)}
-            checked={inStore}
-            type="checkbox"
-            id="inStore"
-          />
-          <label className="cursor-pointer" htmlFor="inStore">
-            Dostupný v obchode
-          </label>
-        </div>
-
-        <div className="flex gap-2 mt-2">
-          <input
-            onChange={() => setInStock((prev) => !prev)}
-            checked={inStock}
-            type="checkbox"
-            id="inStock"
-          />
-          <label className="cursor-pointer" htmlFor="inStock">
-            Dostupný v sklade
-          </label>
-        </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-2 w-full sm:gap-8">
-        <div>
-          <p className="mb-2">Počet nových kusov v obchode</p>
+      {(category === "Herné konzoly" || category === "Mobily") && (
+        <div className="w-full">
+          <p className="mb-2">Sériové číslo (S/N)</p>
           <input
-            onChange={(e) => setQuantityInStore(e.target.value)}
-            value={quantityInStore}
+            onChange={(e) => setSerialNumber(e.target.value)}
+            value={serialNumber}
             className="w-full max-w-[500px] px-3 py-2"
-            type="number"
-            placeholder="Počet kusov v obchode"
+            type="text"
+            placeholder="Sem zadajte sériové číslo"
           />
         </div>
+      )}
 
-        <div>
-          <p className="mb-2">Počet nových kusov na sklade</p>
-          <input
-            onChange={(e) => setQuantityInStock(e.target.value)}
-            value={quantityInStock}
-            className="w-full max-w-[500px] px-3 py-2"
-            type="number"
-            placeholder="Počet kusov na sklade"
-          />
+      {category === "Mobily" && (
+        <div className="w-full">
+          <p className="mb-2">Trieda</p>
+          <select
+            value={productClass}
+            onChange={(e) => setProductClass(e.target.value)}
+            className="w-full px-3 py-2"
+          >
+            <option value="">Vyberte triedu</option>
+            {classOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-2 w-full sm:gap-8">
-        <div>
-          <p className="mb-2">Počet použitých kusov v obchode</p>
-          <input
-            onChange={(e) => setQuantityUsedInStore(e.target.value)}
-            value={quantityUsedInStore}
-            className="w-full max-w-[500px] px-3 py-2"
-            type="number"
-            placeholder="Počet použitých kusov v obchode"
-          />
-        </div>
-
-        <div>
-          <p className="mb-2">Počet použitých kusov na sklade</p>
-          <input
-            onChange={(e) => setQuantityUsedInStock(e.target.value)}
-            value={quantityUsedInStock}
-            className="w-full max-w-[500px] px-3 py-2"
-            type="number"
-            placeholder="Počet použitých kusov na sklade"
-          />
-        </div>
-      </div>
+      )}
 
       <div className="w-full">
         <p className="mb-2">EAN kód produktu (nepovinné)</p>
