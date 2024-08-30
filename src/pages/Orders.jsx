@@ -1,6 +1,5 @@
 import React from "react";
-import { useEffect } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import { backendUrl, currency } from "../App";
 import { toast } from "react-toastify";
@@ -46,9 +45,36 @@ const Orders = ({ token }) => {
     }
   };
 
+  const deleteOrderHandler = async (orderId) => {
+    const confirmed = window.confirm(
+      "Naozaj chcete odstrániť túto objednávku? Táto akcia je nevratná."
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const response = await axios.post(
+        `${backendUrl}/api/order/delete`,
+        { orderId },
+        { headers: { token } }
+      );
+      if (response.data.success) {
+        toast.success("Objednávka bola úspešne odstránená.");
+        fetchAllOrders(); // Refresh the orders list after deletion
+      } else {
+        toast.error(response.data.message);
+      }
+    } catch (error) {
+      toast.error("Chyba pri odstraňovaní objednávky.");
+      console.error(error.message);
+    }
+  };
+
   useEffect(() => {
     fetchAllOrders();
   }, [token]);
+
+  console.log(orders);
 
   return (
     <div>
@@ -102,25 +128,38 @@ const Orders = ({ token }) => {
               <p className="text-sm sm:text-[15px]">
                 Produkty : {order.items.length}
               </p>
-              <p className="mt-3">Platobná metóda : {order.paymentMethod}</p>
-              <p>Stav platby : {order.payment ? "Done" : "Pending"}</p>
+              <p className="mt-3">
+                Platobná metóda :{" "}
+                {order.paymentMethod === "COD"
+                  ? "Dobierka"
+                  : order.paymentMethod}
+              </p>
+              <p>Stav platby : {order.payment ? "Zaplatená" : "Nezaplatená"}</p>
               <p>Dátum : {new Date(order.date).toLocaleDateString()}</p>
             </div>
             <p className="text-sm sm:text-[15px]">
               {currency}
               {order.amount}
             </p>
-            <select
-              onChange={(event) => statusHandler(event, order._id)}
-              value={order.status}
-              className="p-2 font-semibold"
-            >
-              <option value="Order Placed">Zadaná objednávka</option>
-              <option value="Packing">Balenie</option>
-              <option value="Shipped">Odoslané</option>
-              <option value="Out for delivery">Na doručenie</option>
-              <option value="Delivered">Doručené</option>
-            </select>
+            <div className="flex gap-2">
+              <select
+                onChange={(event) => statusHandler(event, order._id)}
+                value={order.status}
+                className="p-2 font-semibold"
+              >
+                <option value="Order Placed">Zadaná objednávka</option>
+                <option value="Packing">Balenie</option>
+                <option value="Shipped">Odoslané</option>
+                <option value="Out for delivery">Na doručenie</option>
+                <option value="Delivered">Doručené</option>
+              </select>
+              <button
+                onClick={() => deleteOrderHandler(order._id)}
+                className="bg-red-500 text-white p-2 rounded-md"
+              >
+                Odstrániť
+              </button>
+            </div>
           </div>
         ))}
       </div>
