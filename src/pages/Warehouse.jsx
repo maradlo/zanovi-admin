@@ -53,6 +53,15 @@ const Warehouse = () => {
     setExpandedCategory(expandedCategory === key ? null : key);
   };
 
+  const isProductOutOfStock = (product) => {
+    return (
+      product.warehouse.quantityInStock.new === 0 &&
+      product.warehouse.quantityInStock.used === 0 &&
+      product.warehouse.quantityInStore.new === 0 &&
+      product.warehouse.quantityInStore.used === 0
+    );
+  };
+
   return (
     <div>
       <h1 className="text-4xl font-bold mb-4">Sklad</h1>
@@ -96,7 +105,12 @@ const Warehouse = () => {
                 </tr>
                 {expandedCategory === `${category}-${subCategory}` &&
                   warehouseData[category][subCategory].map((product) => (
-                    <tr key={product._id}>
+                    <tr
+                      key={product._id}
+                      className={
+                        isProductOutOfStock(product) ? "bg-gray-300" : ""
+                      }
+                    >
                       <td
                         className="border border-gray-200 px-4 py-2"
                         colSpan="4"
