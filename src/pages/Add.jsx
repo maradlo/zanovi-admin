@@ -28,6 +28,7 @@ const Add = ({ token }) => {
 
   const [serialNumber, setSerialNumber] = useState(""); // S/N field
   const [productClass, setProductClass] = useState(""); // Class field
+  const [youtubeLink, setYoutubeLink] = useState(""); // YouTube link field
 
   const [categories, setCategories] = useState([]);
   const [newCategory, setNewCategory] = useState("");
@@ -227,6 +228,12 @@ const Add = ({ token }) => {
         formData.append("class", productClass); // Append Class field
       }
 
+      if (category === "Hry") {
+        formData.append("youtubeLink", youtubeLink); // Append YouTube link field for 'Hry'
+      }
+
+      formData.append("eanCode", eanCode);
+
       image1 && formData.append("image1", image1);
       image2 && formData.append("image2", image2);
       image3 && formData.append("image3", image3);
@@ -253,6 +260,7 @@ const Add = ({ token }) => {
         setSubCategory("");
         setSerialNumber(""); // Reset S/N field
         setProductClass(""); // Reset Class field
+        setYoutubeLink("");
       } else {
         toast.error(response.data.message);
         setLoading(false);
@@ -490,6 +498,19 @@ const Add = ({ token }) => {
               </option>
             ))}
           </select>
+        </div>
+      )}
+
+      {category === "Hry" && (
+        <div className="w-full">
+          <p className="mb-2">Link na YouTube Trailer (nepovinné)</p>
+          <input
+            onChange={(e) => setYoutubeLink(e.target.value)}
+            value={youtubeLink}
+            className="w-full max-w-[500px] px-3 py-2"
+            type="text"
+            placeholder="Sem zadajte YouTube link"
+          />
         </div>
       )}
 

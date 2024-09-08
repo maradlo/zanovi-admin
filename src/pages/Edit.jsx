@@ -28,6 +28,7 @@ const Edit = ({ token }) => {
   const [subCategoryList, setSubCategoryList] = useState([]);
   const condition = "new"; // Condition (new/used)
   const [eanCode, setEanCode] = useState(""); // New field for EAN code
+  const [youtubeLink, setYoutubeLink] = useState(""); // YouTube link field
 
   const price = "0";
 
@@ -89,6 +90,7 @@ const Edit = ({ token }) => {
         setBestseller(product.bestseller);
         setCategory(product.category);
         setSubCategory(product.subCategory);
+        setYoutubeLink(product.youtubeLink || "");
         setEanCode(product.eanCode || ""); // Set EAN code if exists
         setSerialNumber(product.serialNumber || ""); // Set Serial Number if exists
         setProductClass(product.class || ""); // Set Product Class if exists
@@ -253,6 +255,7 @@ const Edit = ({ token }) => {
       formData.append("price", price);
       formData.append("bestseller", bestseller);
       formData.append("subCategory", subCategory || "");
+      formData.append("youtubeLink", youtubeLink);
       formData.append("condition", condition); // Use condition directly
       formData.append("eanCode", eanCode); // Include EAN code
       formData.append("serialNumber", serialNumber); // Include Serial Number
@@ -532,6 +535,19 @@ const Edit = ({ token }) => {
               </option>
             ))}
           </select>
+        </div>
+      )}
+
+      {category === "Hry" && (
+        <div className="w-full">
+          <p className="mb-2">Link na YouTube Trailer (nepovinné)</p>
+          <input
+            onChange={(e) => setYoutubeLink(e.target.value)}
+            value={youtubeLink}
+            className="w-full max-w-[500px] px-3 py-2"
+            type="text"
+            placeholder="Sem zadajte YouTube link"
+          />
         </div>
       )}
 

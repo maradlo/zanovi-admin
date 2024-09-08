@@ -26,6 +26,9 @@ const Inventory = () => {
   };
 
   const handleScan = () => {
+    if (eanCode === "") {
+      return toast.error("Zadajte EAN kód");
+    }
     setProducts((prevProducts) =>
       prevProducts.filter((product) => product.eanCode !== eanCode)
     );
