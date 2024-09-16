@@ -21,21 +21,21 @@ const Edit = ({ token }) => {
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [description2, setDescription2] = useState(""); // New field for description2
+  const [description2, setDescription2] = useState("");
   const [selectedTab, setSelectedTab] = useState("write"); // For ReactMde
   const [category, setCategory] = useState("");
   const [subCategory, setSubCategory] = useState("");
   const [subCategoryList, setSubCategoryList] = useState([]);
-  const condition = "new"; // Condition (new/used)
-  const [eanCode, setEanCode] = useState(""); // New field for EAN code
-  const [youtubeLink, setYoutubeLink] = useState(""); // YouTube link field
+  const [condition, setCondition] = useState(""); // Added condition state
+  const [eanCode, setEanCode] = useState("");
+  const [youtubeLink, setYoutubeLink] = useState("");
 
   const price = "0";
 
   const [bestseller, setBestseller] = useState(false);
 
-  const [serialNumber, setSerialNumber] = useState(""); // Serial Number for specific categories
-  const [productClass, setProductClass] = useState(""); // Class for mobile phones
+  const [serialNumber, setSerialNumber] = useState("");
+  const [productClass, setProductClass] = useState("");
 
   const [categories, setCategories] = useState([]);
   const [newCategory, setNewCategory] = useState("");
@@ -86,17 +86,19 @@ const Edit = ({ token }) => {
         setProduct(product);
         setName(product.name);
         setDescription(product.description);
-        setDescription2(product.description2 || ""); // Set description2
+        setDescription2(product.description2 || "");
         setBestseller(product.bestseller);
         setCategory(product.category);
         setSubCategory(product.subCategory);
         setYoutubeLink(product.youtubeLink || "");
-        setEanCode(product.eanCode || ""); // Set EAN code if exists
-        setSerialNumber(product.serialNumber || ""); // Set Serial Number if exists
-        setProductClass(product.class || ""); // Set Product Class if exists
+        setEanCode(product.eanCode || "");
+        setSerialNumber(product.serialNumber || "");
+        setProductClass(product.class || "");
+        setCondition(product.condition || ""); // Set condition if it exists
 
+        // Handle images
         if (product.image && product.image.length > 0) {
-          setImage1(product.image[0]);
+          setImage1(product.image[0] || null);
           setImage2(product.image[1] || null);
           setImage3(product.image[2] || null);
           setImage4(product.image[3] || null);
@@ -252,19 +254,38 @@ const Edit = ({ token }) => {
       formData.append("description", description);
       formData.append("description2", description2); // Include description2
       formData.append("category", category);
-      formData.append("price", price);
-      formData.append("bestseller", bestseller);
       formData.append("subCategory", subCategory || "");
-      formData.append("youtubeLink", youtubeLink);
-      formData.append("condition", condition); // Use condition directly
-      formData.append("eanCode", eanCode); // Include EAN code
-      formData.append("serialNumber", serialNumber); // Include Serial Number
-      formData.append("class", productClass); // Include Product Class
+      formData.append("bestseller", bestseller);
+      formData.append("youtubeLink", youtubeLink || "");
+      formData.append("eanCode", eanCode || ""); // Include EAN code
+      formData.append("serialNumber", serialNumber || "");
+      formData.append("class", productClass || "");
+      formData.append("condition", condition || ""); // Include condition if applicable
 
-      if (image1 instanceof File) formData.append("image1", image1);
-      if (image2 instanceof File) formData.append("image2", image2);
-      if (image3 instanceof File) formData.append("image3", image3);
-      if (image4 instanceof File) formData.append("image4", image4);
+      // Handle image files
+      if (image1 instanceof File) {
+        formData.append("image1", image1);
+      } else if (image1 && typeof image1 === "string") {
+        formData.append("existingImage1", image1);
+      }
+
+      if (image2 instanceof File) {
+        formData.append("image2", image2);
+      } else if (image2 && typeof image2 === "string") {
+        formData.append("existingImage2", image2);
+      }
+
+      if (image3 instanceof File) {
+        formData.append("image3", image3);
+      } else if (image3 && typeof image3 === "string") {
+        formData.append("existingImage3", image3);
+      }
+
+      if (image4 instanceof File) {
+        formData.append("image4", image4);
+      } else if (image4 && typeof image4 === "string") {
+        formData.append("existingImage4", image4);
+      }
 
       const response = await axios.put(
         `${backendUrl}/api/product/update/${id}`,
@@ -310,7 +331,7 @@ const Edit = ({ token }) => {
                 image1
                   ? image1 instanceof File
                     ? URL.createObjectURL(image1)
-                    : image1
+                    : `${backendUrl}/${image1}`
                   : assets.upload_area
               }
               alt=""
@@ -329,7 +350,7 @@ const Edit = ({ token }) => {
                 image2
                   ? image2 instanceof File
                     ? URL.createObjectURL(image2)
-                    : image2
+                    : `${backendUrl}/${image2}`
                   : assets.upload_area
               }
               alt=""
@@ -348,7 +369,7 @@ const Edit = ({ token }) => {
                 image3
                   ? image3 instanceof File
                     ? URL.createObjectURL(image3)
-                    : image3
+                    : `${backendUrl}/${image3}`
                   : assets.upload_area
               }
               alt=""
@@ -367,7 +388,7 @@ const Edit = ({ token }) => {
                 image4
                   ? image4 instanceof File
                     ? URL.createObjectURL(image4)
-                    : image4
+                    : `${backendUrl}/${image4}`
                   : assets.upload_area
               }
               alt=""
@@ -505,6 +526,20 @@ const Edit = ({ token }) => {
             Označiť ako bestseller
           </label>
         </div>
+      </div>
+
+      {/* If you have condition field for products */}
+      <div className="w-full">
+        <p className="mb-2">Stav produktu</p>
+        <select
+          value={condition}
+          onChange={(e) => setCondition(e.target.value)}
+          className="w-full px-3 py-2"
+        >
+          <option value="">Vyberte stav</option>
+          <option value="new">Nový</option>
+          <option value="used">Použitý</option>
+        </select>
       </div>
 
       {["Herné konzoly", "Mobily"].includes(category) && (

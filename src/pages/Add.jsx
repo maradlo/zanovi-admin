@@ -7,8 +7,12 @@ import { FaTimes, FaSpinner } from "react-icons/fa";
 import ReactMde from "react-mde";
 import "react-mde/lib/styles/css/react-mde-all.css";
 import * as Showdown from "showdown";
+import { useLocation } from "react-router-dom";
 
 const Add = ({ token }) => {
+  const location = useLocation();
+  const eanCodeFromState = location.state?.eanCode || "";
+
   const [image1, setImage1] = useState(false);
   const [image2, setImage2] = useState(false);
   const [image3, setImage3] = useState(false);
@@ -34,7 +38,7 @@ const Add = ({ token }) => {
   const [newCategory, setNewCategory] = useState("");
   const [newSubCategory, setNewSubCategory] = useState("");
 
-  const [eanCode, setEanCode] = useState("");
+  const [eanCode, setEanCode] = useState(eanCodeFromState);
 
   const [loading, setLoading] = useState(false);
 
