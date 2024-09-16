@@ -325,7 +325,7 @@ const Buyback = ({ token }) => {
 
         <button
           type="submit"
-          className="py-2 px-4 bg-blue-500 text-white rounded-md"
+          className="py-2 px-4 bg-[#a7db28] text-white rounded-md"
         >
           Uložiť výkup
         </button>

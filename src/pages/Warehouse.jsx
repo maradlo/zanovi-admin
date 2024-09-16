@@ -11,7 +11,7 @@ const Warehouse = () => {
   const [filteredData, setFilteredData] = useState([]); // For filtering products
   const [selectedCategory, setSelectedCategory] = useState(""); // Selected category filter
   const [selectedSubCategory, setSelectedSubCategory] = useState(""); // Selected subcategory filter
-  const [inputValues, setInputValues] = useState({}); // Store EAN and Serial Number inputs for each product entry
+  const [inputValues, setInputValues] = useState({}); // Store EAN and Serial Number inputs for each warehouse product entry
   const navigate = useNavigate(); // To navigate to the edit page
 
   useEffect(() => {
@@ -20,9 +20,11 @@ const Warehouse = () => {
 
   const fetchWarehouseData = async () => {
     try {
-      const response = await axios.get(`${backendUrl}/api/product/list`);
+      const response = await axios.get(`${backendUrl}/api/warehouse-products`);
       if (response.data.success) {
-        const categorizedData = categorizeProducts(response.data.products);
+        const categorizedData = categorizeWarehouseProducts(
+          response.data.products
+        );
         setWarehouseData(categorizedData);
         setFilteredData(categorizedData); // Initialize filtered data with all products
         setCategories(getUniqueCategories(response.data.products)); // Store unique categories
@@ -35,12 +37,23 @@ const Warehouse = () => {
     }
   };
 
-  const categorizeProducts = (products) => {
+  const categorizeWarehouseProducts = (warehouseProducts) => {
     const categories = {};
-    products.forEach((product) => {
-      if (!product || !product.warehouse) return; // Safeguard against null products
+
+    warehouseProducts.forEach((warehouseProduct) => {
+      const { product } = warehouseProduct;
+
+      // Skip if product is null
+      if (!product) {
+        console.warn(
+          "Missing product data for warehouseProduct:",
+          warehouseProduct
+        );
+        return;
+      }
 
       const { category, subCategory } = product;
+
       if (!categories[category]) {
         categories[category] = {};
       }
@@ -48,74 +61,45 @@ const Warehouse = () => {
         categories[category][subCategory] = [];
       }
 
-      const totalNewInStock = product.warehouse.quantityInStock?.new || 0;
-      const totalNewInStore = product.warehouse.quantityInStore?.new || 0;
-      const totalUsedInStock = product.warehouse.quantityInStock?.used || 0;
-      const totalUsedInStore = product.warehouse.quantityInStore?.used || 0;
-
-      // Add "new" products in stock
-      for (let i = 0; i < totalNewInStock; i++) {
-        categories[category][subCategory].push({
-          ...product,
-          warehouseProductId: product._id, // Add warehouseProductId here
-          condition: "new",
-          location: "in stock",
-          uniqueId: `${product._id}-${i}-new-in-stock`,
-        });
-      }
-
-      // Add "new" products in store
-      for (let i = 0; i < totalNewInStore; i++) {
-        categories[category][subCategory].push({
-          ...product,
-          condition: "new",
-          location: "in store",
-          uniqueId: `${product._id}-${i}-new-in-store`,
-        });
-      }
-
-      // Add "used" products in stock
-      for (let i = 0; i < totalUsedInStock; i++) {
-        categories[category][subCategory].push({
-          ...product,
-          condition: "used",
-          location: "in stock",
-          uniqueId: `${product._id}-${i}-used-in-stock`,
-        });
-      }
-
-      // Add "used" products in store
-      for (let i = 0; i < totalUsedInStore; i++) {
-        categories[category][subCategory].push({
-          ...product,
-          condition: "used",
-          location: "in store",
-          uniqueId: `${product._id}-${i}-used-in-store`,
-        });
-      }
+      // Push each individual warehouse product into the category/subcategory group
+      categories[category][subCategory].push({
+        ...warehouseProduct,
+        warehouseProductId: warehouseProduct._id,
+        productName: product.name,
+        uniqueId: `${warehouseProduct._id}-${warehouseProduct.condition}-${warehouseProduct.location}`,
+      });
     });
 
     return categories;
   };
 
-  const getUniqueCategories = (products) => {
+  const getUniqueCategories = (warehouseProducts) => {
     const uniqueCategories = {};
-    products.forEach((product) => {
-      if (!product) return; // Safeguard against null products
-      if (!uniqueCategories[product.category]) {
-        uniqueCategories[product.category] = new Set();
+
+    warehouseProducts.forEach((warehouseProduct) => {
+      const { product } = warehouseProduct;
+
+      // Skip if product is null
+      if (!product) {
+        return;
       }
-      uniqueCategories[product.category].add(product.subCategory || "General");
+
+      const { category, subCategory } = product;
+      if (!uniqueCategories[category]) {
+        uniqueCategories[category] = new Set();
+      }
+      uniqueCategories[category].add(subCategory || "General");
     });
+
     return uniqueCategories;
   };
 
   const isProductOutOfStock = (product) => {
     return (
-      product.warehouse.quantityInStock?.new === 0 &&
-      product.warehouse.quantityInStock?.used === 0 &&
-      product.warehouse.quantityInStore?.new === 0 &&
-      product.warehouse.quantityInStore?.used === 0
+      product.warehouse?.quantityInStock?.new === 0 &&
+      product.warehouse?.quantityInStock?.used === 0 &&
+      product.warehouse?.quantityInStore?.new === 0 &&
+      product.warehouse?.quantityInStore?.used === 0
     );
   };
 
@@ -157,12 +141,22 @@ const Warehouse = () => {
     }));
   };
 
-  const saveProductDetails = async (warehouseProductId, uniqueId) => {
+  const saveProductDetails = async (
+    warehouseProductId,
+    uniqueId,
+    condition,
+    location
+  ) => {
     const { eanCode, serialNumber } = inputValues[uniqueId] || {};
     try {
       const response = await axios.put(
-        `${backendUrl}/api/warehouse-products/update/${warehouseProductId}`, // Use warehouse product ID here
-        { eanCode, serialNumber }
+        `${backendUrl}/api/warehouse-products/update/${warehouseProductId}`,
+        {
+          eanCode,
+          serialNumber,
+          condition,
+          location,
+        }
       );
       if (response.data.success) {
         toast.success("Údaje produktu boli uložené");
@@ -170,6 +164,7 @@ const Warehouse = () => {
         toast.error("Nepodarilo sa uložiť údaje produktu");
       }
     } catch (error) {
+      console.warn(error);
       toast.error("Chyba pri ukladaní údajov produktu");
     }
   };
@@ -225,16 +220,16 @@ const Warehouse = () => {
               <React.Fragment key={`${category}-${subCategory}`}>
                 <tr>
                   <td className="border border-gray-200 px-4 py-2">
-                    {category || "Unknown Category"} {/* Safeguard */}
+                    {category || "Unknown Category"}
                   </td>
                   <td className="border border-gray-200 px-4 py-2">
-                    {subCategory || "General"} {/* Safeguard */}
+                    {subCategory || "General"}
                   </td>
                   <td className="border border-gray-200 px-4 py-2">
                     {filteredData[category][subCategory].length}
                   </td>
-                  <td className="border border-gray-200 px-4 py-2"></td>
                 </tr>
+
                 {filteredData[category][subCategory].map((product, index) => (
                   <tr
                     key={`${product.uniqueId}-${index}`}
@@ -249,24 +244,23 @@ const Warehouse = () => {
                       <div className="p-4 flex justify-between items-center">
                         <div>
                           <span className="font-bold">
-                            {product.name || "Unknown Product"}{" "}
-                            {/* Safeguard */}
+                            {product.productName || "Unknown Product"}
                           </span>
                           <div>
                             <span>
-                              {product.condition === "new" ? "Nový" : "Použitý"}
+                              {product.condition === "new" ? "New" : "Used"}
                             </span>
                             <span className="ml-4">
                               (
                               {product.location === "in stock"
-                                ? "Na sklade"
-                                : "Na predajni"}
+                                ? "In Stock"
+                                : "In Store"}
                               )
                             </span>
                           </div>
                         </div>
                         <div className="flex flex-col">
-                          <label className="text-sm">EAN kód</label>
+                          <label className="text-sm">EAN</label>
                           <input
                             onChange={(e) =>
                               handleInputChange(
@@ -282,32 +276,29 @@ const Warehouse = () => {
                             }
                             className="w-full max-w-[150px] px-3 py-2"
                             type="text"
-                            placeholder="EAN kód"
+                            placeholder="EAN"
                           />
                         </div>
-                        {product.category === "Mobily" ||
-                        product.category === "Herné konzoly" ? (
-                          <div className="flex flex-col">
-                            <label className="text-sm">S/N</label>
-                            <input
-                              onChange={(e) =>
-                                handleInputChange(
-                                  product.uniqueId,
-                                  "serialNumber",
-                                  e.target.value
-                                )
-                              }
-                              value={
-                                inputValues[product.uniqueId]?.serialNumber ||
-                                product.serialNumber ||
-                                ""
-                              }
-                              className="w-full max-w-[150px] px-3 py-2"
-                              type="text"
-                              placeholder="S/N"
-                            />
-                          </div>
-                        ) : null}
+                        <div className="flex flex-col">
+                          <label className="text-sm">S/N</label>
+                          <input
+                            onChange={(e) =>
+                              handleInputChange(
+                                product.uniqueId,
+                                "serialNumber",
+                                e.target.value
+                              )
+                            }
+                            value={
+                              inputValues[product.uniqueId]?.serialNumber ||
+                              product.serialNumber ||
+                              ""
+                            }
+                            className="w-full max-w-[150px] px-3 py-2"
+                            type="text"
+                            placeholder="S/N"
+                          />
+                        </div>
                       </div>
                     </td>
                     <td className="border border-gray-200 px-4 py-2">
@@ -315,16 +306,19 @@ const Warehouse = () => {
                         onClick={() =>
                           saveProductDetails(
                             product.warehouseProductId,
-                            product.uniqueId
+                            product.uniqueId,
+                            product.condition,
+                            product.location
                           )
                         }
                         className="text-blue-500"
                       >
                         <FaSave />
                       </button>
+
                       <button
                         onClick={() =>
-                          navigate(`/warehouse/edit/${product._id}`)
+                          navigate(`/warehouse/edit/${product.product._id}`)
                         }
                         className="ml-4 text-green-500"
                       >

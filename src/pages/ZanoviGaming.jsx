@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { backendUrl } from "../App";
 import { toast } from "react-toastify";
-import { FaTrash, FaPlus } from "react-icons/fa";
+import { FaTrash, FaPlus, FaCheck, FaBan } from "react-icons/fa";
 
 const ZanoviGaming = () => {
   const [consoles, setConsoles] = useState([]);
@@ -110,7 +110,43 @@ const ZanoviGaming = () => {
     }
   };
 
-  console.log("toto", reservations);
+  const handleConfirmReservation = async (reservationId) => {
+    if (window.confirm("Naozaj chcete potvrdiť túto rezerváciu?")) {
+      try {
+        const response = await axios.post(
+          `${backendUrl}/api/reservations/${reservationId}/confirm`
+        );
+        if (response.data.success) {
+          toast.success("Rezervácia potvrdená");
+          fetchReservations();
+        } else {
+          toast.error("Nepodarilo sa potvrdiť rezerváciu");
+        }
+      } catch (error) {
+        console.error("Chyba pri potvrdzovaní rezervácie:", error);
+        toast.error("Nepodarilo sa potvrdiť rezerváciu");
+      }
+    }
+  };
+
+  const handleDeclineReservation = async (reservationId) => {
+    if (window.confirm("Naozaj chcete zamietnúť túto rezerváciu?")) {
+      try {
+        const response = await axios.post(
+          `${backendUrl}/api/reservations/${reservationId}/decline`
+        );
+        if (response.data.success) {
+          toast.success("Rezervácia zamietnutá");
+          fetchReservations();
+        } else {
+          toast.error("Nepodarilo sa zamietnúť rezerváciu");
+        }
+      } catch (error) {
+        console.error("Chyba pri zamietnutí rezervácie:", error);
+        toast.error("Nepodarilo sa zamietnúť rezerváciu");
+      }
+    }
+  };
 
   return (
     <div>
@@ -120,7 +156,7 @@ const ZanoviGaming = () => {
       <div className="mb-8">
         <h2 className="text-2xl mb-4">Spravujte konzoly</h2>
         <button
-          className="py-2 px-4 bg-blue-500 text-white rounded-md mb-4"
+          className="py-2 px-4 bg-[#a7db28] text-white rounded-md mb-4"
           onClick={() => setIsModalOpen(true)}
         >
           <FaPlus className="inline mr-2" /> Pridať konzolu
@@ -162,8 +198,10 @@ const ZanoviGaming = () => {
             <tr>
               <th className="border border-gray-200 px-4 py-2">Dátum</th>
               <th className="border border-gray-200 px-4 py-2">Trvanie</th>
-              <th className="border border-gray-200 px-4 py-2">Hráči</th>
+              <th className="border border-gray-200 px-4 py-2">Ovládače</th>
               <th className="border border-gray-200 px-4 py-2">Konzola</th>
+              <th className="border border-gray-200 px-4 py-2">Stav</th>
+              <th className="border border-gray-200 px-4 py-2">Poznámky</th>
               <th className="border border-gray-200 px-4 py-2">Akcie</th>
             </tr>
           </thead>
@@ -171,7 +209,7 @@ const ZanoviGaming = () => {
             {reservations.map((reservation) => (
               <tr key={reservation._id}>
                 <td className="border border-gray-200 px-4 py-2">
-                  {reservation.dateTime}
+                  {new Date(reservation.dateTime).toLocaleDateString()}
                 </td>
                 <td className="border border-gray-200 px-4 py-2">
                   {reservation.duration} h
@@ -183,17 +221,52 @@ const ZanoviGaming = () => {
                   {reservation.console}
                 </td>
                 <td className="border border-gray-200 px-4 py-2">
+                  {reservation.confirmed
+                    ? "Potvrdená"
+                    : reservation.declined
+                    ? "Zamietnutá"
+                    : "Nepotvrdená"}
+                </td>
+                <td className="border border-gray-200 px-4 py-2">
+                  {reservation.notes}
+                </td>
+                <td className="border border-gray-200 px-4 py-2">
                   <button
                     className="text-red-500"
                     onClick={() => handleDeleteReservation(reservation._id)}
                   >
                     <FaTrash />
                   </button>
+                  <button
+                    className="text-green-500 ml-4"
+                    onClick={() => handleConfirmReservation(reservation._id)}
+                  >
+                    <FaCheck />
+                  </button>
+                  <button
+                    className="text-blue-500 ml-4"
+                    onClick={() => handleDeclineReservation(reservation._id)}
+                  >
+                    <FaBan />
+                  </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="flex flex-col">
+        <h2 className="text-2xl mt-8">Legenda</h2>
+        <span className="flex mt-4">
+          <FaTrash className="text-red-500 mt-1" /> - Vymazať rezerváciu
+        </span>
+        <span className="flex mt-4">
+          <FaCheck className="text-green-500 mt-1" /> - Potvrdiť rezerváciu
+        </span>
+        <span className="flex mt-4">
+          <FaBan className="text-blue-500 mt-1" /> - Zamietnúť rezerváciu
+        </span>
       </div>
 
       {/* Modal for Adding Consoles */}

@@ -528,7 +528,7 @@ const Add = ({ token }) => {
       <button
         disabled={loading}
         type="submit"
-        className={`w-40 py-3 mt-4 bg-black text-white flex items-center justify-center gap-2 ${
+        className={`w-40 py-3 mt-4 bg-[#a7db28] text-white flex items-center justify-center gap-2 ${
           loading ? "opacity-70 cursor-not-allowed" : ""
         }`}
       >

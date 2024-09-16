@@ -139,7 +139,7 @@ const Orders = ({ token }) => {
             </div>
             <p className="text-sm sm:text-[15px]">
               {currency}
-              {order.amount}
+              {order.amount.toFixed(2)}
             </p>
             <div className="flex gap-2">
               <select
