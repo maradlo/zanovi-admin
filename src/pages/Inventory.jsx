@@ -1,3 +1,4 @@
+// Inventory.jsx
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { backendUrl } from "../App";
@@ -9,8 +10,11 @@ const Inventory = () => {
   const [products, setProducts] = useState({ stock: [], store: [] });
   const [eanCode, setEanCode] = useState("");
   const [activeTab, setActiveTab] = useState("stock"); // 'stock' or 'store'
-  const navigate = useNavigate(); // Initialize navigate
-  const [storeWarehouseId, setStoreWarehouseId] = useState(null); // State for store warehouse ID
+  const navigate = useNavigate();
+
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [eanCodeList, setEanCodeList] = useState([]);
+  const [newEanCode, setNewEanCode] = useState("");
 
   useEffect(() => {
     fetchProducts();
@@ -38,9 +42,6 @@ const Inventory = () => {
               const product = productData.product;
               const warehouseInfo = productData;
 
-              // Add warehouse quantities to the product
-              product.warehouse = warehouseInfo;
-
               // Determine placement based on quantities
               const inStock =
                 warehouseInfo.quantityInStock.new > 0 ||
@@ -49,11 +50,22 @@ const Inventory = () => {
                 warehouseInfo.quantityInStore.new > 0 ||
                 warehouseInfo.quantityInStore.used > 0;
 
+              // Expand products based on quantity
               if (inStock) {
-                stockProducts.push(product);
+                for (let i = 0; i < warehouseInfo.quantityInStock.new; i++) {
+                  stockProducts.push({ ...productData, condition: "new" });
+                }
+                for (let i = 0; i < warehouseInfo.quantityInStock.used; i++) {
+                  stockProducts.push({ ...productData, condition: "used" });
+                }
               }
               if (inStore) {
-                storeProducts.push(product);
+                for (let i = 0; i < warehouseInfo.quantityInStore.new; i++) {
+                  storeProducts.push({ ...productData, condition: "new" });
+                }
+                for (let i = 0; i < warehouseInfo.quantityInStore.used; i++) {
+                  storeProducts.push({ ...productData, condition: "used" });
+                }
               }
             });
           }
@@ -79,32 +91,78 @@ const Inventory = () => {
 
     setProducts((prevProducts) => {
       const updatedProducts = { ...prevProducts };
-      updatedProducts[activeTab] = prevProducts[activeTab].filter(
-        (product) => product.eanCode !== eanCode
+      const productList = [...updatedProducts[activeTab]];
+
+      // Find the index of the first product with the matching EAN code
+      const index = productList.findIndex(
+        (productData) => productData.product.eanCode === eanCode
       );
+
+      if (index !== -1) {
+        productList.splice(index, 1); // Remove one product at the found index
+        updatedProducts[activeTab] = productList;
+      } else {
+        toast.error("Produkt s daným EAN kódom nebol nájdený");
+      }
+
       return updatedProducts;
     });
 
     setEanCode("");
   };
 
-  const handleAdd = async () => {
-    if (eanCode.trim() === "") {
-      return toast.error("Zadajte EAN kód");
+  const handleOpenDialog = () => {
+    setIsDialogOpen(true);
+    setEanCodeList([]);
+    setNewEanCode("");
+  };
+
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    setEanCodeList([]);
+    setNewEanCode("");
+  };
+
+  const handleAddEanCode = () => {
+    if (newEanCode.trim() !== "") {
+      setEanCodeList((prevList) => [...prevList, newEanCode.trim()]);
+      setNewEanCode("");
     }
+  };
 
+  const handleAddAll = async () => {
+    const existingProducts = [];
+    const newProducts = [];
+
+    // Fetch all products to check for existing EAN codes
     try {
-      // Combine stock and store products
-      const allProducts = [...products.stock, ...products.store];
-      const product = allProducts.find((prod) => prod.eanCode === eanCode);
+      const allProductsResponse = await axios.get(
+        `${backendUrl}/api/product/list`,
+        {
+          headers: { token },
+        }
+      );
 
-      if (product) {
-        // Product exists, update the warehouse quantities
+      const allProducts = allProductsResponse.data.products;
+
+      for (const code of eanCodeList) {
+        const productData = allProducts.find((prod) => prod.eanCode === code);
+
+        if (productData) {
+          existingProducts.push({ code, productData });
+        } else {
+          newProducts.push(code);
+        }
+      }
+
+      // Add existing products
+      for (const item of existingProducts) {
+        const product = item.productData;
         const location = activeTab === "store" ? "store" : "stock";
-        const condition = product.condition || "new"; // Use product's condition or default to 'new'
+        const condition = "new"; // Adjust as necessary
 
-        // Call the backend endpoint to update the product quantity
-        const updateResponse = await axios.post(
+        // Update the product quantity
+        await axios.post(
           `${backendUrl}/api/product/update-quantity`,
           {
             productId: product._id,
@@ -116,26 +174,29 @@ const Inventory = () => {
             headers: { token },
           }
         );
-
-        if (updateResponse.data.success) {
-          toast.success("Množstvo produktu bolo aktualizované");
-          await fetchProducts(); // Refresh product list
-        } else {
-          toast.error(
-            updateResponse.data.message ||
-              "Nepodarilo sa aktualizovať množstvo produktu"
-          );
-        }
-      } else {
-        // Product does not exist, redirect to Add.jsx
-        navigate("/add", { state: { eanCode } });
       }
-    } catch (error) {
-      console.error("Chyba pri spracovaní EAN kódu:", error);
-      toast.error("Chyba pri spracovaní EAN kódu");
-    }
 
-    setEanCode("");
+      if (existingProducts.length > 0) {
+        toast.success("Množstvo existujúcich produktov bolo aktualizované");
+      }
+
+      // Open new tabs for new products
+      for (const code of newProducts) {
+        window.open(`/add?eanCode=${code}`, "_blank");
+      }
+
+      if (newProducts.length > 0) {
+        toast.info(
+          `${newProducts.length} nových produktov bolo otvorených v nových kartách`
+        );
+      }
+
+      await fetchProducts(); // Refresh the product list
+      handleCloseDialog();
+    } catch (error) {
+      console.error("Chyba pri pridávaní produktov:", error);
+      toast.error("Chyba pri pridávaní produktov");
+    }
   };
 
   return (
@@ -178,7 +239,7 @@ const Inventory = () => {
         </button>
 
         <button
-          onClick={handleAdd}
+          onClick={handleOpenDialog}
           className="ml-2 py-2 px-4 bg-[#a7db28] text-white rounded-md"
         >
           Pridať nový produkt
@@ -206,6 +267,54 @@ const Inventory = () => {
           )}
         </div>
       )}
+
+      {/* Dialog for adding multiple EAN codes */}
+      {isDialogOpen && (
+        <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50">
+          <div className="bg-white p-6 rounded-md w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Pridať nové produkty</h2>
+            <div className="mb-4">
+              <input
+                type="text"
+                value={newEanCode}
+                onChange={(e) => setNewEanCode(e.target.value)}
+                placeholder="EAN kód"
+                className="px-3 py-2 border border-gray-300 w-full"
+              />
+              <button
+                onClick={handleAddEanCode}
+                className="mt-2 py-2 px-4 bg-[#a7db28] text-white rounded-md w-full"
+              >
+                Pridať EAN kód do zoznamu
+              </button>
+            </div>
+            {eanCodeList.length > 0 && (
+              <div className="mb-4">
+                <h3 className="text-lg font-bold mb-2">Zoznam EAN kódov:</h3>
+                <ul className="list-disc list-inside">
+                  {eanCodeList.map((code, index) => (
+                    <li key={index}>{code}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="flex justify-end">
+              <button
+                onClick={handleAddAll}
+                className="py-2 px-4 bg-[#a7db28] text-white rounded-md mr-2"
+              >
+                Pridať všetky
+              </button>
+              <button
+                onClick={handleCloseDialog}
+                className="py-2 px-4 bg-gray-300 rounded-md"
+              >
+                Zrušiť
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -218,23 +327,31 @@ const ProductTable = ({ products }) => (
         <th className="border border-gray-200 px-4 py-2">EAN kód</th>
         <th className="border border-gray-200 px-4 py-2">Kategória</th>
         <th className="border border-gray-200 px-4 py-2">Podkategória</th>
+        <th className="border border-gray-200 px-4 py-2">Stav</th>
       </tr>
     </thead>
     <tbody>
-      {products.map((product) => (
-        <tr key={product._id}>
-          <td className="border border-gray-200 px-4 py-2">{product.name}</td>
-          <td className="border border-gray-200 px-4 py-2">
-            {product.eanCode}
-          </td>
-          <td className="border border-gray-200 px-4 py-2">
-            {product.category}
-          </td>
-          <td className="border border-gray-200 px-4 py-2">
-            {product.subCategory}
-          </td>
-        </tr>
-      ))}
+      {products.map((productData, index) => {
+        const { product, condition } = productData;
+
+        return (
+          <tr key={`${product._id}-${index}`}>
+            <td className="border border-gray-200 px-4 py-2">{product.name}</td>
+            <td className="border border-gray-200 px-4 py-2">
+              {product.eanCode}
+            </td>
+            <td className="border border-gray-200 px-4 py-2">
+              {product.category}
+            </td>
+            <td className="border border-gray-200 px-4 py-2">
+              {product.subCategory}
+            </td>
+            <td className="border border-gray-200 px-4 py-2 capitalize">
+              {condition}
+            </td>
+          </tr>
+        );
+      })}
     </tbody>
   </table>
 );
