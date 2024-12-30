@@ -40,6 +40,8 @@ const Edit = ({ token }) => {
   const [categories, setCategories] = useState([]);
   const [newCategory, setNewCategory] = useState("");
   const [newSubCategory, setNewSubCategory] = useState("");
+  const [subSubCategoryList, setSubSubCategoryList] = useState([]);
+  const [subSubCategory, setSubSubCategory] = useState("");
 
   const classOptions = [
     { value: "A", label: "Trieda A (brand new)" },
@@ -78,6 +80,12 @@ const Edit = ({ token }) => {
     }
   }, [category]);
 
+  useEffect(() => {
+    if (category && subCategory) {
+      fetchSubSubCategories(category, subCategory);
+    }
+  }, [category, subCategory]);
+
   const fetchProduct = async () => {
     try {
       const response = await axios.get(`${backendUrl}/api/product/${id}`);
@@ -90,6 +98,7 @@ const Edit = ({ token }) => {
         setBestseller(product.bestseller);
         setCategory(product.category);
         setSubCategory(product.subCategory);
+        setSubSubCategory(product.subSubCategory || "");
         setYoutubeLink(product.youtubeLink || "");
         setEanCode(product.eanCode || "");
         setSerialNumber(product.serialNumber || "");
@@ -142,6 +151,22 @@ const Edit = ({ token }) => {
     }
   };
 
+  const fetchSubSubCategories = async (categoryName, subCategoryName) => {
+    try {
+      const response = await axios.get(
+        `${backendUrl}/api/category/sub-sub-categories/${categoryName}/${subCategoryName}`
+      );
+      if (response.data.success) {
+        setSubSubCategoryList(response.data.subSubCategories);
+      } else {
+        toast.error(response.data.message);
+      }
+    } catch (error) {
+      console.log(error);
+      toast.error("Nepodarilo sa načítať podpodkategórie");
+    }
+  };
+
   const addNewCategory = async () => {
     if (!newCategory.trim()) {
       toast.error("Názov kategórie nemôže byť prázdny");
@@ -189,6 +214,29 @@ const Edit = ({ token }) => {
     } catch (error) {
       console.log(error);
       toast.error("Nepodarilo sa pridať podkategóriu");
+    }
+  };
+
+  const addNewSubSubCategory = async (newSubSubCat) => {
+    try {
+      const response = await axios.post(
+        backendUrl + "/api/category/sub-sub-category/add",
+        {
+          categoryName: category,
+          subCategoryName: subCategory,
+          subSubCategoryName: newSubSubCat,
+        },
+        { headers: { token } }
+      );
+      if (response.data.success) {
+        toast.success(response.data.message);
+        fetchSubSubCategories(category, subCategory);
+      } else {
+        toast.error(response.data.message);
+      }
+    } catch (error) {
+      console.log(error);
+      toast.error("Nepodarilo sa pridať podpodkategóriu");
     }
   };
 
@@ -244,6 +292,38 @@ const Edit = ({ token }) => {
     }
   };
 
+  const deleteSubSubCategory = async (subSubCategoryName) => {
+    if (
+      window.confirm(
+        `Naozaj chcete vymazať túto podpodkategóriu: ${subSubCategoryName}?`
+      )
+    ) {
+      try {
+        const response = await axios.post(
+          backendUrl + "/api/category/sub-sub-category/delete",
+          {
+            categoryName: category,
+            subCategoryName: subCategory,
+            subSubCategoryName: subSubCategoryName,
+          },
+          { headers: { token } }
+        );
+        if (response.data.success) {
+          toast.success(response.data.message);
+          fetchSubSubCategories(category, subCategory);
+          if (subSubCategory === subSubCategoryName) {
+            setSubSubCategory("");
+          }
+        } else {
+          toast.error(response.data.message);
+        }
+      } catch (error) {
+        console.log(error);
+        toast.error("Nepodarilo sa vymazať podpodkategóriu");
+      }
+    }
+  };
+
   const onSubmitHandler = async (e) => {
     e.preventDefault();
 
@@ -261,6 +341,7 @@ const Edit = ({ token }) => {
       formData.append("serialNumber", serialNumber || "");
       formData.append("class", productClass || "");
       formData.append("condition", condition || ""); // Include condition if applicable
+      formData.append("subSubCategory", subSubCategory || "");
 
       // Handle image files
       if (image1 instanceof File) {
@@ -311,6 +392,15 @@ const Edit = ({ token }) => {
     setSubCategory(""); // Reset subcategory when category changes
     if (selectedCategory) {
       fetchSubCategories(selectedCategory);
+    }
+  };
+
+  const handleSubCategoryChange = (e) => {
+    const selectedSubCategory = e.target.value;
+    setSubCategory(selectedSubCategory);
+    setSubSubCategory(""); // Reset subSubCategory when subCategory changes
+    if (selectedSubCategory && category) {
+      fetchSubSubCategories(category, selectedSubCategory);
     }
   };
 
@@ -481,7 +571,7 @@ const Edit = ({ token }) => {
           <p className="mb-2">Podkategória produktu</p>
           <div className="flex items-center">
             <select
-              onChange={(e) => setSubCategory(e.target.value)}
+              onChange={handleSubCategoryChange}
               value={subCategory}
               className="w-full px-3 py-2"
             >
@@ -508,6 +598,45 @@ const Edit = ({ token }) => {
               <FaTimes
                 className="ml-2 text-red-600 cursor-pointer"
                 onClick={() => deleteSubCategory(subCategory)}
+              />
+            )}
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-2">2 Podkategória produktu</p>
+          <div className="flex items-center">
+            <select
+              onChange={(e) => setSubSubCategory(e.target.value)}
+              value={subSubCategory}
+              className="w-full px-3 py-2"
+            >
+              <option value="">Vyberte podkategóriu</option>
+              {subSubCategoryList &&
+                subSubCategoryList.map((subSubCat, index) => (
+                  <option key={`${subSubCat}-${index}`} value={subSubCat}>
+                    {subSubCat}
+                  </option>
+                ))}
+            </select>
+            <button
+              type="button"
+              className="ml-2 text-blue-600"
+              onClick={() => {
+                const newSubSubCat = prompt(
+                  "Zadajte názov novej podpodkategórie:"
+                );
+                if (newSubSubCat) {
+                  addNewSubSubCategory(newSubSubCat);
+                }
+              }}
+            >
+              +
+            </button>
+            {subSubCategory && (
+              <FaTimes
+                className="ml-2 text-red-600 cursor-pointer"
+                onClick={() => deleteSubSubCategory(subSubCategory)}
               />
             )}
           </div>

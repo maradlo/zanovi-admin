@@ -25,6 +25,8 @@ const Add = ({ token }) => {
   const [category, setCategory] = useState("");
   const [subCategory, setSubCategory] = useState("");
   const [subCategoryList, setSubCategoryList] = useState([]);
+  const [subSubCategoryList, setSubSubCategoryList] = useState([]);
+  const [subSubCategory, setSubSubCategory] = useState("");
   const condition = "new";
 
   const price = "0";
@@ -37,6 +39,7 @@ const Add = ({ token }) => {
   const [categories, setCategories] = useState([]);
   const [newCategory, setNewCategory] = useState("");
   const [newSubCategory, setNewSubCategory] = useState("");
+  const [newSubSubCategory, setNewSubSubCategory] = useState("");
 
   const [eanCode, setEanCode] = useState(eanCodeFromState);
 
@@ -52,6 +55,28 @@ const Add = ({ token }) => {
     tables: true,
     simplifiedAutoLink: true,
   });
+
+  const [subcategory2, setSubcategory2] = useState("");
+
+  useEffect(() => {
+    if (!token) {
+      console.log("No token available");
+      return;
+    }
+
+    const testAuth = async () => {
+      try {
+        const response = await axios.get(`${backendUrl}/api/category/list`, {
+          headers: { token },
+        });
+        console.log("Auth test response:", response.data);
+      } catch (error) {
+        console.error("Auth test failed:", error);
+      }
+    };
+
+    testAuth();
+  }, [token]);
 
   useEffect(() => {
     fetchCategories();
@@ -70,14 +95,26 @@ const Add = ({ token }) => {
   }, [newSubCategory]);
 
   useEffect(() => {
+    if (newSubSubCategory) {
+      addNewSubSubCategory();
+    }
+  }, [newSubSubCategory]);
+
+  useEffect(() => {
     if (category) {
       fetchSubCategories(category);
     }
-  }, [category]);
+
+    if (subCategory) {
+      fetchSubSubCategories(category, subCategory);
+    }
+  }, [category, subCategory]);
 
   const fetchCategories = async () => {
     try {
-      const response = await axios.get(backendUrl + "/api/category/list");
+      const response = await axios.get(backendUrl + "/api/category/list", {
+        headers: { token },
+      });
       if (response.data.success) {
         setCategories(response.data.categories);
       } else {
@@ -85,14 +122,19 @@ const Add = ({ token }) => {
       }
     } catch (error) {
       console.log(error);
-      toast.error("Nepodarilo sa načítať kategórie");
+      if (error.response?.status === 401) {
+        toast.error("Neautorizovaný prístup. Prihláste sa prosím znovu.");
+      } else {
+        toast.error("Nepodarilo sa načítať kategórie");
+      }
     }
   };
 
   const fetchSubCategories = async (categoryName) => {
     try {
       const response = await axios.get(
-        `${backendUrl}/api/category/subcategories/${categoryName}`
+        `${backendUrl}/api/category/subcategories/${categoryName}`,
+        { headers: { token } }
       );
       if (response.data.success) {
         setSubCategoryList(response.data.subCategories);
@@ -102,6 +144,22 @@ const Add = ({ token }) => {
     } catch (error) {
       console.log(error);
       toast.error("Nepodarilo sa načítať podkategórie");
+    }
+  };
+
+  const fetchSubSubCategories = async (categoryName, subCategoryName) => {
+    try {
+      const response = await axios.get(
+        `${backendUrl}/api/category/sub-sub-categories/${categoryName}/${subCategoryName}`
+      );
+      if (response.data.success) {
+        setSubSubCategoryList(response.data.subSubCategories);
+      } else {
+        toast.error(response.data.message);
+      }
+    } catch (error) {
+      console.log(error);
+      toast.error("Nepodarilo sa načítať podpodkategórie");
     }
   };
 
@@ -145,13 +203,42 @@ const Add = ({ token }) => {
       if (response.data.success) {
         toast.success(response.data.message);
         setNewSubCategory("");
-        fetchSubCategories(category); // Refresh subcategories list
+        fetchSubCategories(category);
       } else {
         toast.error(response.data.message);
       }
     } catch (error) {
       console.log(error);
       toast.error("Nepodarilo sa pridať podkategóriu");
+    }
+  };
+
+  const addNewSubSubCategory = async () => {
+    if (!newSubSubCategory.trim()) {
+      toast.error("Názov podpodkategórie nemôže byť prázdny");
+      return;
+    }
+
+    try {
+      const response = await axios.post(
+        backendUrl + "/api/category/sub-sub-category/add",
+        {
+          categoryName: category,
+          subCategoryName: subCategory,
+          subSubCategoryName: newSubSubCategory,
+        },
+        { headers: { token } }
+      );
+      if (response.data.success) {
+        toast.success(response.data.message);
+        setNewSubSubCategory("");
+        fetchSubSubCategories(category, subCategory);
+      } else {
+        toast.error(response.data.message);
+      }
+    } catch (error) {
+      console.log(error);
+      toast.error("Nepodarilo sa pridať podpodkategóriu");
     }
   };
 
@@ -191,18 +278,54 @@ const Add = ({ token }) => {
       try {
         const response = await axios.post(
           backendUrl + "/api/category/subcategory/delete",
-          { categoryName: category, subCategoryName: subCategoryName },
+          { categoryName: category, subCategoryName },
           { headers: { token } }
         );
         if (response.data.success) {
           toast.success(response.data.message);
-          fetchSubCategories(category); // Refresh subcategories list
+          fetchSubCategories(category);
+          if (subCategory === subCategoryName) {
+            setSubCategory("");
+            setSubSubCategory("");
+          }
         } else {
           toast.error(response.data.message);
         }
       } catch (error) {
         console.log(error);
         toast.error("Nepodarilo sa vymazať podkategóriu");
+      }
+    }
+  };
+
+  const deleteSubSubCategory = async (subSubCategoryName) => {
+    if (
+      window.confirm(
+        `Naozaj chcete vymazať túto podpodkategóriu: ${subSubCategoryName}?`
+      )
+    ) {
+      try {
+        const response = await axios.post(
+          backendUrl + "/api/category/sub-sub-category/delete",
+          {
+            categoryName: category,
+            subCategoryName: subCategory,
+            subSubCategoryName: subSubCategoryName,
+          },
+          { headers: { token } }
+        );
+        if (response.data.success) {
+          toast.success(response.data.message);
+          fetchSubSubCategories(category, subCategory);
+          if (subSubCategory === subSubCategoryName) {
+            setSubSubCategory("");
+          }
+        } else {
+          toast.error(response.data.message);
+        }
+      } catch (error) {
+        console.log(error);
+        toast.error("Nepodarilo sa vymazať podpodkategóriu");
       }
     }
   };
@@ -220,6 +343,7 @@ const Add = ({ token }) => {
       formData.append("description2", description2);
       formData.append("category", category);
       formData.append("subCategory", subCategory || "");
+      formData.append("subSubCategory", subSubCategory || "");
       formData.append("condition", condition);
       formData.append("price", price);
       formData.append("bestseller", bestseller);
@@ -262,6 +386,7 @@ const Add = ({ token }) => {
         setEanCode("");
         setCategory("");
         setSubCategory("");
+        setSubSubCategory("");
         setSerialNumber(""); // Reset S/N field
         setProductClass(""); // Reset Class field
         setYoutubeLink("");
@@ -282,6 +407,15 @@ const Add = ({ token }) => {
     setSubCategory(""); // Reset subcategory when category changes
     if (selectedCategory) {
       fetchSubCategories(selectedCategory);
+    }
+  };
+
+  const handleSubCategoryChange = (e) => {
+    const selectedSubCategory = e.target.value;
+    setSubCategory(selectedSubCategory);
+    setSubSubCategory(""); // Reset subSubCategory when subCategory changes
+    if (selectedSubCategory && category) {
+      fetchSubSubCategories(category, selectedSubCategory);
     }
   };
 
@@ -432,11 +566,12 @@ const Add = ({ token }) => {
               className="w-full px-3 py-2"
             >
               <option value="">Vyberte podkategóriu</option>
-              {subCategoryList.map((subCat) => (
-                <option key={subCat} value={subCat}>
-                  {subCat}
-                </option>
-              ))}
+              {subCategoryList &&
+                subCategoryList.map((subCat, index) => (
+                  <option key={`${subCat}-${index}`} value={subCat}>
+                    {subCat}
+                  </option>
+                ))}
             </select>
             <button
               type="button"
@@ -454,6 +589,45 @@ const Add = ({ token }) => {
               <FaTimes
                 className="ml-2 text-red-600 cursor-pointer"
                 onClick={() => deleteSubCategory(subCategory)}
+              />
+            )}
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-2">2 Podkategória produktu</p>
+          <div className="flex items-center">
+            <select
+              onChange={(e) => setSubSubCategory(e.target.value)}
+              value={subSubCategory}
+              className="w-full px-3 py-2"
+            >
+              <option value="">Vyberte podkategóriu</option>
+              {subSubCategoryList &&
+                subSubCategoryList.map((subSubCat, index) => (
+                  <option key={`${subSubCat}-${index}`} value={subSubCat}>
+                    {subSubCat}
+                  </option>
+                ))}
+            </select>
+            <button
+              type="button"
+              className="ml-2 text-blue-600"
+              onClick={() => {
+                const newSubSubCat = prompt(
+                  "Zadajte názov novej podpodkategórie:"
+                );
+                if (newSubSubCat) {
+                  setNewSubSubCategory(newSubSubCat);
+                }
+              }}
+            >
+              +
+            </button>
+            {subSubCategory && (
+              <FaTimes
+                className="ml-2 text-red-600 cursor-pointer"
+                onClick={() => deleteSubSubCategory(subSubCategory)}
               />
             )}
           </div>

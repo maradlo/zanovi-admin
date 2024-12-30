@@ -11,6 +11,7 @@ import {
   FaArrowDown,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import AuthPasswordPrompt from "../components/AuthPasswordPrompt";
 
 const Warehouse = () => {
   const [warehouseData, setWarehouseData] = useState([]);
@@ -22,6 +23,8 @@ const Warehouse = () => {
   const [expandedProducts, setExpandedProducts] = useState({});
   const [warehouseProducts, setWarehouseProducts] = useState({});
   const navigate = useNavigate(); // To navigate to the edit page
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
 
   useEffect(() => {
     fetchWarehouseData();
@@ -90,36 +93,65 @@ const Warehouse = () => {
     return uniqueCategories;
   };
 
-  const deleteWarehouseProduct = async (warehouseProductId, productId) => {
-    if (window.confirm("Naozaj chcete vymazať tento produkt zo skladu?")) {
+  const handleSensitiveAction = (action, ...args) => {
+    setPendingAction(() => async (password) => {
       try {
-        const response = await axios.delete(
-          `${backendUrl}/api/warehouse-products/remove/${warehouseProductId}`,
-          {
-            data: {
-              productId,
-            },
-          }
-        );
-        if (response.data.success) {
-          toast.success("Produkt bol vymazaný zo skladu");
-          // Update the state to remove the deleted product
-          setWarehouseProducts((prev) => {
-            const updatedProducts = { ...prev };
-            updatedProducts[productId] = updatedProducts[productId].filter(
-              (wp) => wp._id !== warehouseProductId
-            );
-            return updatedProducts;
-          });
-          // Optionally, refresh warehouse data to update quantities
-          fetchWarehouseData();
-        } else {
-          toast.error("Nepodarilo sa vymazať produkt zo skladu");
-        }
+        // Add password to the request
+        const actionArgs = [...args, { authPassword: password }];
+        await action(...actionArgs);
+        setShowAuthPrompt(false);
+        setPendingAction(null);
       } catch (error) {
-        console.error("Chyba pri vymazávaní produktu zo skladu:", error);
+        console.error("Action failed:", error);
+        toast.error(
+          "Operation failed. Please check your authorization password."
+        );
+      }
+    });
+    setShowAuthPrompt(true);
+  };
+
+  const deleteWarehouseProduct = async (
+    warehouseProductId,
+    productId,
+    authData
+  ) => {
+    if (!authData?.authPassword) {
+      return handleSensitiveAction(
+        deleteWarehouseProduct,
+        warehouseProductId,
+        productId
+      );
+    }
+
+    try {
+      const response = await axios.delete(
+        `${backendUrl}/api/warehouse-products/remove/${warehouseProductId}`,
+        {
+          data: {
+            productId,
+            authPassword: authData.authPassword,
+          },
+        }
+      );
+      if (response.data.success) {
+        toast.success("Produkt bol vymazaný zo skladu");
+        // Update the state to remove the deleted product
+        setWarehouseProducts((prev) => {
+          const updatedProducts = { ...prev };
+          updatedProducts[productId] = updatedProducts[productId].filter(
+            (wp) => wp._id !== warehouseProductId
+          );
+          return updatedProducts;
+        });
+        // Optionally, refresh warehouse data to update quantities
+        fetchWarehouseData();
+      } else {
         toast.error("Nepodarilo sa vymazať produkt zo skladu");
       }
+    } catch (error) {
+      console.error("Error deleting warehouse product:", error);
+      toast.error(error.response?.data?.message || "Failed to delete product");
     }
   };
 
@@ -227,6 +259,34 @@ const Warehouse = () => {
     }
   };
 
+  const handleEditClick = async (productId) => {
+    setPendingAction(() => async (password) => {
+      try {
+        const response = await axios.post(
+          `${backendUrl}/api/warehouse/verify-auth`,
+          {
+            authPassword: password,
+          }
+        );
+
+        if (response.data.success) {
+          // Pass authorization state through navigation
+          navigate(`/warehouse/edit/${productId}`, {
+            state: { isAuthorized: true },
+          });
+        } else {
+          toast.error("Incorrect authorization password");
+        }
+        setShowAuthPrompt(false);
+        setPendingAction(null);
+      } catch (error) {
+        console.error("Authorization failed:", error);
+        toast.error("Authorization failed");
+      }
+    });
+    setShowAuthPrompt(true);
+  };
+
   return (
     <div>
       <h1 className="text-4xl font-bold mb-4">Sklad</h1>
@@ -305,9 +365,7 @@ const Warehouse = () => {
                       </td>
                       <td className="border border-gray-200 px-4 py-2">
                         <button
-                          onClick={() =>
-                            navigate(`/warehouse/edit/${product.product._id}`)
-                          }
+                          onClick={() => handleEditClick(product.product._id)}
                           className="ml-4 text-green-500"
                         >
                           <FaEdit />
@@ -423,6 +481,16 @@ const Warehouse = () => {
           )}
         </tbody>
       </table>
+
+      {showAuthPrompt && (
+        <AuthPasswordPrompt
+          onSubmit={(password) => pendingAction(password)}
+          onCancel={() => {
+            setShowAuthPrompt(false);
+            setPendingAction(null);
+          }}
+        />
+      )}
     </div>
   );
 };
